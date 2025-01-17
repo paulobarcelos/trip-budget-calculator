@@ -2,12 +2,9 @@
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
+import { currencies } from '@/data/currencies';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-const currencies = [
-  'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'HKD', 'NZD'
-].sort();
 
 const initialState: TripState = {
   travelers: [],
@@ -99,8 +96,8 @@ export default function SetupPage() {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white"
           >
             {currencies.map((currency) => (
-              <option key={currency} value={currency}>
-                {currency}
+              <option key={currency.code} value={currency.code}>
+                {currency.code} - {currency.name}
               </option>
             ))}
           </select>
