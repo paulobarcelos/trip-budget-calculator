@@ -4,6 +4,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState, Traveler } from '@/types';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { ConfirmationDialog } from '@/components/ConfirmationDialog';
 
 const initialState: TripState = {
   travelers: [],
@@ -31,6 +32,7 @@ export default function TravelersPage() {
   const [maxDate, setMaxDate] = useState('');
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [travelerToDelete, setTravelerToDelete] = useState<Traveler | null>(null);
 
   // Set initial dates and mounted state after component mounts
   useEffect(() => {
@@ -108,6 +110,7 @@ export default function TravelersPage() {
       ...tripState,
       travelers: tripState.travelers.filter(t => t.id !== travelerId)
     });
+    setTravelerToDelete(null);
   };
 
   const handleContinue = () => {
@@ -214,7 +217,7 @@ export default function TravelersPage() {
             <div className="flex justify-between items-center">
               <span className="text-gray-900 font-medium">{traveler.name}</span>
               <button
-                onClick={() => handleRemoveTraveler(traveler.id)}
+                onClick={() => setTravelerToDelete(traveler)}
                 className="text-red-600 hover:text-red-800"
               >
                 Remove
@@ -258,6 +261,16 @@ export default function TravelersPage() {
       >
         Continue to Expenses
       </button>
+
+      <ConfirmationDialog
+        isOpen={travelerToDelete !== null}
+        onClose={() => setTravelerToDelete(null)}
+        onConfirm={() => handleRemoveTraveler(travelerToDelete!.id)}
+        title="Remove Traveler"
+        message={`Are you sure you want to remove ${travelerToDelete?.name}? This action cannot be undone.`}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+      />
     </div>
   );
 } 
