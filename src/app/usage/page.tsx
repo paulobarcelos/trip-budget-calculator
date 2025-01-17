@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Tab } from '@headlessui/react';
 import { classNames } from '@/utils/classNames';
 import { initialTripState } from '@/constants/initialState';
+import { calculateDailyCost } from '@/utils/tripStateUpdates';
 
 export default function UsagePage() {
   const router = useRouter();
@@ -88,7 +89,11 @@ export default function UsagePage() {
                                   <div>
                                     <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h5>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                      {expense.totalCost} {tripState.baseCurrency} total per day
+                                      {(() => {
+                                        const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate);
+                                        const days = Math.ceil((new Date(expense.endDate).getTime() - new Date(expense.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                                        return `${dailyCost.toFixed(2)} ${tripState.baseCurrency} per day (${expense.totalCost} ${tripState.baseCurrency} total over ${days} days)`;
+                                      })()}
                                     </p>
                                   </div>
                                   <div className="flex space-x-2">

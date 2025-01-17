@@ -3,6 +3,7 @@
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
 import { initialTripState } from '@/constants/initialState';
+import { calculateDailyCost } from '@/utils/tripStateUpdates';
 
 interface TravelerCosts {
   shared: {
@@ -55,7 +56,9 @@ export default function BudgetPage() {
       const expense = tripState.dailySharedExpenses.find(e => e.id === expenseId);
       if (!expense || travelerIds.length === 0) return;
 
-      const costPerPerson = expense.totalCost / travelerIds.length;
+      const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate);
+      const costPerPerson = dailyCost / travelerIds.length;
+      
       travelerIds.forEach(travelerId => {
         const costs = travelerCosts.get(travelerId);
         if (costs) {

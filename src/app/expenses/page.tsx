@@ -271,32 +271,16 @@ export default function ExpensesPage() {
             
             <form onSubmit={handleAddDailySharedExpense} className="space-y-4">
               <div>
-                <label htmlFor="expenseName" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                <label htmlFor="sharedExpenseName" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
                   Expense Name
                 </label>
                 <input
                   type="text"
-                  name="expenseName"
-                  id="expenseName"
+                  name="sharedExpenseName"
+                  id="sharedExpenseName"
                   value={newDailySharedExpense.name}
                   onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, name: e.target.value })}
                   placeholder="Enter expense name"
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="totalCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Total Cost ({tripState.baseCurrency})
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="totalCost"
-                  id="totalCost"
-                  value={newDailySharedExpense.totalCost}
-                  onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, totalCost: e.target.value })}
-                  placeholder="0.00"
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                 />
               </div>
@@ -330,6 +314,79 @@ export default function ExpensesPage() {
                     min={tripState.startDate}
                     max={tripState.endDate}
                     onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, endDate: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                  />
+                </div>
+              </div>
+
+              {newDailySharedExpense.startDate && newDailySharedExpense.endDate && (
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Total days: {(() => {
+                    const start = new Date(newDailySharedExpense.startDate);
+                    const end = new Date(newDailySharedExpense.endDate);
+                    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                  })()}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="totalCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Total Cost ({tripState.baseCurrency})
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="totalCost"
+                    id="totalCost"
+                    value={newDailySharedExpense.totalCost}
+                    onChange={(e) => {
+                      const totalCost = parseFloat(e.target.value);
+                      setNewDailySharedExpense({ 
+                        ...newDailySharedExpense, 
+                        totalCost: isNaN(totalCost) ? '' : e.target.value 
+                      });
+                    }}
+                    placeholder="0.00"
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="dailyCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Cost per Day ({tripState.baseCurrency})
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="dailyCost"
+                    id="dailyCost"
+                    value={(() => {
+                      if (!newDailySharedExpense.startDate || !newDailySharedExpense.endDate || !newDailySharedExpense.totalCost) return '';
+                      const start = new Date(newDailySharedExpense.startDate);
+                      const end = new Date(newDailySharedExpense.endDate);
+                      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                      return (parseFloat(newDailySharedExpense.totalCost) / days).toFixed(2);
+                    })()}
+                    onChange={(e) => {
+                      if (!newDailySharedExpense.startDate || !newDailySharedExpense.endDate) return;
+                      const dailyCost = parseFloat(e.target.value);
+                      if (isNaN(dailyCost)) {
+                        setNewDailySharedExpense({ 
+                          ...newDailySharedExpense, 
+                          totalCost: '' 
+                        });
+                        return;
+                      }
+                      const start = new Date(newDailySharedExpense.startDate);
+                      const end = new Date(newDailySharedExpense.endDate);
+                      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                      setNewDailySharedExpense({ 
+                        ...newDailySharedExpense, 
+                        totalCost: (dailyCost * days).toString()
+                      });
+                    }}
+                    placeholder="0.00"
                     className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                   />
                 </div>
