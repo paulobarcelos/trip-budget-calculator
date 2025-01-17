@@ -19,6 +19,11 @@ export default function ExpensesPage() {
     name: string;
   } | null>(null);
 
+  const [expenseToEdit, setExpenseToEdit] = useState<{
+    id: string;
+    type: 'dailyShared' | 'dailyPersonal' | 'oneTimeShared' | 'oneTimePersonal';
+  } | null>(null);
+
   // Daily Shared Expense form state
   const [newDailySharedExpense, setNewDailySharedExpense] = useState({
     name: '',
@@ -224,6 +229,231 @@ export default function ExpensesPage() {
     router.push('/usage');
   };
 
+  const handleEditDailySharedExpense = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!expenseToEdit || expenseToEdit.type !== 'dailyShared') return;
+    
+    if (!newDailySharedExpense.name.trim() || !newDailySharedExpense.totalCost || !newDailySharedExpense.startDate || !newDailySharedExpense.endDate) {
+      setError('All fields are required');
+      return;
+    }
+
+    const cost = parseFloat(newDailySharedExpense.totalCost);
+    if (isNaN(cost) || cost <= 0) {
+      setError('Cost must be a positive number');
+      return;
+    }
+
+    if (new Date(newDailySharedExpense.startDate) >= new Date(newDailySharedExpense.endDate)) {
+      setError('End date must be after start date');
+      return;
+    }
+
+    if (new Date(newDailySharedExpense.startDate) < new Date(tripState.startDate) ||
+        new Date(newDailySharedExpense.endDate) > new Date(tripState.endDate)) {
+      setError('Expense dates must be within trip dates');
+      return;
+    }
+
+    const updatedExpense: DailySharedExpense = {
+      id: expenseToEdit.id,
+      name: newDailySharedExpense.name.trim(),
+      totalCost: cost,
+      startDate: newDailySharedExpense.startDate,
+      endDate: newDailySharedExpense.endDate,
+    };
+
+    setTripState({
+      ...tripState,
+      dailySharedExpenses: tripState.dailySharedExpenses.map(expense => 
+        expense.id === expenseToEdit.id ? updatedExpense : expense
+      )
+    });
+
+    setNewDailySharedExpense({
+      name: '',
+      totalCost: '',
+      startDate: tripState.startDate,
+      endDate: tripState.endDate,
+    });
+    setExpenseToEdit(null);
+    setError('');
+  };
+
+  const handleEditDailyPersonalExpense = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!expenseToEdit || expenseToEdit.type !== 'dailyPersonal') return;
+    
+    if (!newDailyPersonalExpense.name.trim() || !newDailyPersonalExpense.dailyCost) {
+      setError('All fields are required');
+      return;
+    }
+
+    const cost = parseFloat(newDailyPersonalExpense.dailyCost);
+    if (isNaN(cost) || cost <= 0) {
+      setError('Cost must be a positive number');
+      return;
+    }
+
+    const updatedExpense: DailyPersonalExpense = {
+      id: expenseToEdit.id,
+      name: newDailyPersonalExpense.name.trim(),
+      dailyCost: cost,
+    };
+
+    setTripState({
+      ...tripState,
+      dailyPersonalExpenses: tripState.dailyPersonalExpenses.map(expense => 
+        expense.id === expenseToEdit.id ? updatedExpense : expense
+      )
+    });
+
+    setNewDailyPersonalExpense({
+      name: '',
+      dailyCost: '',
+    });
+    setExpenseToEdit(null);
+    setError('');
+  };
+
+  const handleEditOneTimeSharedExpense = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!expenseToEdit || expenseToEdit.type !== 'oneTimeShared') return;
+    
+    if (!newOneTimeSharedExpense.name.trim() || !newOneTimeSharedExpense.totalCost) {
+      setError('All fields are required');
+      return;
+    }
+
+    const cost = parseFloat(newOneTimeSharedExpense.totalCost);
+    if (isNaN(cost) || cost <= 0) {
+      setError('Cost must be a positive number');
+      return;
+    }
+
+    const updatedExpense: OneTimeSharedExpense = {
+      id: expenseToEdit.id,
+      name: newOneTimeSharedExpense.name.trim(),
+      totalCost: cost,
+    };
+
+    setTripState({
+      ...tripState,
+      oneTimeSharedExpenses: tripState.oneTimeSharedExpenses.map(expense => 
+        expense.id === expenseToEdit.id ? updatedExpense : expense
+      )
+    });
+
+    setNewOneTimeSharedExpense({
+      name: '',
+      totalCost: '',
+    });
+    setExpenseToEdit(null);
+    setError('');
+  };
+
+  const handleEditOneTimePersonalExpense = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!expenseToEdit || expenseToEdit.type !== 'oneTimePersonal') return;
+    
+    if (!newOneTimePersonalExpense.name.trim() || !newOneTimePersonalExpense.totalCost) {
+      setError('All fields are required');
+      return;
+    }
+
+    const cost = parseFloat(newOneTimePersonalExpense.totalCost);
+    if (isNaN(cost) || cost <= 0) {
+      setError('Cost must be a positive number');
+      return;
+    }
+
+    const updatedExpense: OneTimePersonalExpense = {
+      id: expenseToEdit.id,
+      name: newOneTimePersonalExpense.name.trim(),
+      totalCost: cost,
+    };
+
+    setTripState({
+      ...tripState,
+      oneTimePersonalExpenses: tripState.oneTimePersonalExpenses.map(expense => 
+        expense.id === expenseToEdit.id ? updatedExpense : expense
+      )
+    });
+
+    setNewOneTimePersonalExpense({
+      name: '',
+      totalCost: '',
+    });
+    setExpenseToEdit(null);
+    setError('');
+  };
+
+  const startEditing = (expense: DailySharedExpense | DailyPersonalExpense | OneTimeSharedExpense | OneTimePersonalExpense, type: 'dailyShared' | 'dailyPersonal' | 'oneTimeShared' | 'oneTimePersonal') => {
+    setExpenseToEdit({ id: expense.id, type });
+    setError('');
+
+    switch (type) {
+      case 'dailyShared':
+        const dailyShared = expense as DailySharedExpense;
+        setNewDailySharedExpense({
+          name: dailyShared.name,
+          totalCost: dailyShared.totalCost.toString(),
+          startDate: dailyShared.startDate,
+          endDate: dailyShared.endDate,
+        });
+        break;
+      case 'dailyPersonal':
+        const dailyPersonal = expense as DailyPersonalExpense;
+        setNewDailyPersonalExpense({
+          name: dailyPersonal.name,
+          dailyCost: dailyPersonal.dailyCost.toString(),
+        });
+        break;
+      case 'oneTimeShared':
+        const oneTimeShared = expense as OneTimeSharedExpense;
+        setNewOneTimeSharedExpense({
+          name: oneTimeShared.name,
+          totalCost: oneTimeShared.totalCost.toString(),
+        });
+        break;
+      case 'oneTimePersonal':
+        const oneTimePersonal = expense as OneTimePersonalExpense;
+        setNewOneTimePersonalExpense({
+          name: oneTimePersonal.name,
+          totalCost: oneTimePersonal.totalCost.toString(),
+        });
+        break;
+    }
+  };
+
+  const cancelEditing = () => {
+    setExpenseToEdit(null);
+    setError('');
+    
+    setNewDailySharedExpense({
+      name: '',
+      totalCost: '',
+      startDate: tripState.startDate,
+      endDate: tripState.endDate,
+    });
+    setNewDailyPersonalExpense({
+      name: '',
+      dailyCost: '',
+    });
+    setNewOneTimeSharedExpense({
+      name: '',
+      totalCost: '',
+    });
+    setNewOneTimePersonalExpense({
+      name: '',
+      totalCost: '',
+    });
+  };
+
   if (!isInitialized) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -269,7 +499,7 @@ export default function ExpensesPage() {
               The total cost will be divided by the number of travelers for each day.
             </p>
             
-            <form onSubmit={handleAddDailySharedExpense} className="space-y-4">
+            <form onSubmit={expenseToEdit?.type === 'dailyShared' ? handleEditDailySharedExpense : handleAddDailySharedExpense} className="space-y-4">
               <div>
                 <label htmlFor="sharedExpenseName" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
                   Expense Name
@@ -396,8 +626,17 @@ export default function ExpensesPage() {
                 type="submit"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
               >
-                Add Daily Shared Expense
+                {expenseToEdit?.type === 'dailyShared' ? 'Save Changes' : 'Add Daily Shared Expense'}
               </button>
+              {expenseToEdit?.type === 'dailyShared' && (
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
+                >
+                  Cancel
+                </button>
+              )}
             </form>
 
             <div className="mt-8 space-y-4">
@@ -409,15 +648,29 @@ export default function ExpensesPage() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {expense.totalCost} {tripState.baseCurrency} • {expense.startDate} to {expense.endDate}
+                      {(() => {
+                        const start = new Date(expense.startDate);
+                        const end = new Date(expense.endDate);
+                        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                        const dailyCost = expense.totalCost / days;
+                        return `${expense.totalCost} ${tripState.baseCurrency} total • ${dailyCost.toFixed(2)} ${tripState.baseCurrency} per day • ${days} days (${expense.startDate} to ${expense.endDate})`;
+                      })()}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setExpenseToDelete({ id: expense.id, type: 'dailyShared', name: expense.name })}
-                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => startEditing(expense, 'dailyShared')}
+                      className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setExpenseToDelete({ id: expense.id, type: 'dailyShared', name: expense.name })}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -430,7 +683,7 @@ export default function ExpensesPage() {
               You&apos;ll be able to assign which travelers use these expenses in the Usage tab.
             </p>
             
-            <form onSubmit={handleAddDailyPersonalExpense} className="space-y-4">
+            <form onSubmit={expenseToEdit?.type === 'dailyPersonal' ? handleEditDailyPersonalExpense : handleAddDailyPersonalExpense} className="space-y-4">
               <div>
                 <label htmlFor="personalExpenseName" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
                   Expense Name
@@ -466,8 +719,17 @@ export default function ExpensesPage() {
                 type="submit"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
               >
-                Add Daily Personal Expense
+                {expenseToEdit?.type === 'dailyPersonal' ? 'Save Changes' : 'Add Daily Personal Expense'}
               </button>
+              {expenseToEdit?.type === 'dailyPersonal' && (
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
+                >
+                  Cancel
+                </button>
+              )}
             </form>
 
             <div className="mt-8 space-y-4">
@@ -482,12 +744,20 @@ export default function ExpensesPage() {
                       {expense.dailyCost} {tripState.baseCurrency} per day
                     </p>
                   </div>
-                  <button
-                    onClick={() => setExpenseToDelete({ id: expense.id, type: 'dailyPersonal', name: expense.name })}
-                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => startEditing(expense, 'dailyPersonal')}
+                      className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setExpenseToDelete({ id: expense.id, type: 'dailyPersonal', name: expense.name })}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -500,7 +770,7 @@ export default function ExpensesPage() {
               You&apos;ll be able to assign which travelers use these expenses in the Usage tab.
             </p>
             
-            <form onSubmit={handleAddOneTimeSharedExpense} className="space-y-4">
+            <form onSubmit={expenseToEdit?.type === 'oneTimeShared' ? handleEditOneTimeSharedExpense : handleAddOneTimeSharedExpense} className="space-y-4">
               <div>
                 <label htmlFor="oneTimeSharedExpenseName" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
                   Expense Name
@@ -536,8 +806,17 @@ export default function ExpensesPage() {
                 type="submit"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
               >
-                Add One-time Shared Expense
+                {expenseToEdit?.type === 'oneTimeShared' ? 'Save Changes' : 'Add One-time Shared Expense'}
               </button>
+              {expenseToEdit?.type === 'oneTimeShared' && (
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
+                >
+                  Cancel
+                </button>
+              )}
             </form>
 
             <div className="mt-8 space-y-4">
@@ -552,12 +831,20 @@ export default function ExpensesPage() {
                       {expense.totalCost} {tripState.baseCurrency}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setExpenseToDelete({ id: expense.id, type: 'oneTimeShared', name: expense.name })}
-                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => startEditing(expense, 'oneTimeShared')}
+                      className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setExpenseToDelete({ id: expense.id, type: 'oneTimeShared', name: expense.name })}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -570,7 +857,7 @@ export default function ExpensesPage() {
               You&apos;ll be able to assign which travelers use these expenses in the Usage tab.
             </p>
             
-            <form onSubmit={handleAddOneTimePersonalExpense} className="space-y-4">
+            <form onSubmit={expenseToEdit?.type === 'oneTimePersonal' ? handleEditOneTimePersonalExpense : handleAddOneTimePersonalExpense} className="space-y-4">
               <div>
                 <label htmlFor="oneTimePersonalExpenseName" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
                   Expense Name
@@ -606,8 +893,17 @@ export default function ExpensesPage() {
                 type="submit"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
               >
-                Add One-time Personal Expense
+                {expenseToEdit?.type === 'oneTimePersonal' ? 'Save Changes' : 'Add One-time Personal Expense'}
               </button>
+              {expenseToEdit?.type === 'oneTimePersonal' && (
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
+                >
+                  Cancel
+                </button>
+              )}
             </form>
 
             <div className="mt-8 space-y-4">
@@ -622,12 +918,20 @@ export default function ExpensesPage() {
                       {expense.totalCost} {tripState.baseCurrency}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setExpenseToDelete({ id: expense.id, type: 'oneTimePersonal', name: expense.name })}
-                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => startEditing(expense, 'oneTimePersonal')}
+                      className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setExpenseToDelete({ id: expense.id, type: 'oneTimePersonal', name: expense.name })}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
