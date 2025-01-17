@@ -1,47 +1,97 @@
 'use client';
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { TripState, Traveler } from '@/types';
+import { TripState, Traveler, Day } from '@/types';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ConfirmationDialog } from '@/components/ConfirmationDialog';
-
-const initialState: TripState = {
-  travelers: [],
-  dailySharedExpenses: [],
-  dailyPersonalExpenses: [],
-  oneTimeSharedExpenses: [],
-  oneTimePersonalExpenses: [],
-  days: [],
-  usageCosts: {
-    oneTimeShared: {},
-    oneTimePersonal: {},
-  },
-  baseCurrency: 'USD',
-  startDate: '',
-  endDate: '',
-};
+import { initialTripState } from '@/constants/initialState';
 
 export default function TravelersPage() {
   const router = useRouter();
-  const [tripState, setTripState] = useLocalStorage<TripState>('tripState', initialState);
+  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
   const [newTravelerName, setNewTravelerName] = useState('');
   const [newTravelerStartDate, setNewTravelerStartDate] = useState('');
   const [newTravelerEndDate, setNewTravelerEndDate] = useState('');
   const [minDate, setMinDate] = useState('');
   const [maxDate, setMaxDate] = useState('');
   const [error, setError] = useState('');
-  const [mounted, setMounted] = useState(false);
   const [travelerToDelete, setTravelerToDelete] = useState<Traveler | null>(null);
 
-  // Set initial dates and mounted state after component mounts
+  // Set initial dates after component mounts
   useEffect(() => {
     setNewTravelerStartDate(tripState.startDate);
     setNewTravelerEndDate(tripState.endDate);
     setMinDate(tripState.startDate);
     setMaxDate(tripState.endDate);
-    setMounted(true);
   }, [tripState.startDate, tripState.endDate]);
+
+  const updateDaysWithTraveler = (days: Day[], traveler: Traveler, isRemoving = false) => {
+    const updatedDays = days;
+    const newUsageCosts = {
+      ...tripState.usageCosts,
+      days: { ...tripState.usageCosts.days }
+    };
+
+    days.forEach(day => {
+      const dayDate = new Date(day.date);
+      const travelerStart = new Date(traveler.startDate);
+      const travelerEnd = new Date(traveler.endDate);
+      
+      if (dayDate >= travelerStart && dayDate <= travelerEnd && !isRemoving) {
+        // Initialize the day's expenses if they don't exist
+        if (!newUsageCosts.days[day.id]) {
+          newUsageCosts.days[day.id] = {
+            dailyShared: {},
+            dailyPersonal: {},
+          };
+        }
+
+        // Add the traveler to all active expenses for this day
+        tripState.dailySharedExpenses.forEach(expense => {
+          const isExpenseActive = dayDate >= new Date(expense.startDate) && 
+                                dayDate <= new Date(expense.endDate);
+          if (isExpenseActive) {
+            if (!newUsageCosts.days[day.id].dailyShared[expense.id]) {
+              newUsageCosts.days[day.id].dailyShared[expense.id] = [];
+            }
+            if (!newUsageCosts.days[day.id].dailyShared[expense.id].includes(traveler.id)) {
+              newUsageCosts.days[day.id].dailyShared[expense.id].push(traveler.id);
+            }
+          }
+        });
+
+        tripState.dailyPersonalExpenses.forEach(expense => {
+          if (!newUsageCosts.days[day.id].dailyPersonal[expense.id]) {
+            newUsageCosts.days[day.id].dailyPersonal[expense.id] = [];
+          }
+          if (!newUsageCosts.days[day.id].dailyPersonal[expense.id].includes(traveler.id)) {
+            newUsageCosts.days[day.id].dailyPersonal[expense.id].push(traveler.id);
+          }
+        });
+      } else if (isRemoving) {
+        // Remove the traveler from all expenses on this day
+        if (newUsageCosts.days[day.id]) {
+          Object.keys(newUsageCosts.days[day.id].dailyShared).forEach(expenseId => {
+            newUsageCosts.days[day.id].dailyShared[expenseId] = 
+              newUsageCosts.days[day.id].dailyShared[expenseId].filter(id => id !== traveler.id);
+          });
+
+          Object.keys(newUsageCosts.days[day.id].dailyPersonal).forEach(expenseId => {
+            newUsageCosts.days[day.id].dailyPersonal[expenseId] = 
+              newUsageCosts.days[day.id].dailyPersonal[expenseId].filter(id => id !== traveler.id);
+          });
+        }
+      }
+    });
+
+    setTripState(prev => ({
+      ...prev,
+      usageCosts: newUsageCosts
+    }));
+
+    return updatedDays;
+  };
 
   const handleAddTraveler = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -76,7 +126,8 @@ export default function TravelersPage() {
 
     setTripState({
       ...tripState,
-      travelers: [...tripState.travelers, newTraveler]
+      travelers: [...tripState.travelers, newTraveler],
+      days: updateDaysWithTraveler(tripState.days, newTraveler),
     });
     setNewTravelerName('');
     setError('');
@@ -94,21 +145,31 @@ export default function TravelersPage() {
       return;
     }
 
+    const traveler = tripState.travelers.find(t => t.id === travelerId);
+    if (!traveler) return;
+
+    const updatedTraveler = { ...traveler, startDate, endDate };
+
     setTripState({
       ...tripState,
       travelers: tripState.travelers.map(t => 
         t.id === travelerId 
-          ? { ...t, startDate, endDate }
+          ? updatedTraveler
           : t
-      )
+      ),
+      days: updateDaysWithTraveler(tripState.days, updatedTraveler),
     });
     setError('');
   };
 
   const handleRemoveTraveler = (travelerId: string) => {
+    const traveler = tripState.travelers.find(t => t.id === travelerId);
+    if (!traveler) return;
+
     setTripState({
       ...tripState,
-      travelers: tripState.travelers.filter(t => t.id !== travelerId)
+      travelers: tripState.travelers.filter(t => t.id !== travelerId),
+      days: updateDaysWithTraveler(tripState.days, traveler, true),
     });
     setTravelerToDelete(null);
   };
@@ -121,7 +182,7 @@ export default function TravelersPage() {
     router.push('/expenses');
   };
 
-  if (!mounted) {
+  if (!isInitialized) {
     return (
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Add Travelers</h1>

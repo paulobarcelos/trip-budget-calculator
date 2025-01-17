@@ -1,26 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
-  // State to store our value
-  // Pass initial state function to useState so logic is only executed once
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') {
-      return initialValue;
-    }
+  // Always initialize with the initial value during SSR
+  const [storedValue, setStoredValue] = useState<T>(initialValue);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Once mounted, try to get the value from localStorage
+  useEffect(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (item) {
+        setStoredValue(JSON.parse(item));
+      }
+      setIsInitialized(true);
     } catch (error) {
       console.warn(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
     }
-  });
+  }, [key]);
 
-  // Return a wrapped version of useState's setter function that ...
-  // ... persists the new value to localStorage.
   const setValue = (value: T | ((val: T) => T)) => {
     try {
       // Allow value to be a function so we have same API as useState
@@ -36,14 +35,14 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     }
   };
 
-  return [storedValue, setValue] as const;
+  return [storedValue, setValue, isInitialized] as const;
 }
 
 export function useLocalStorageSelector<T, S>(
   key: string,
   selector: (state: T) => S,
   initialValue: T
-): [S, (value: T | ((val: T) => T)) => void] {
-  const [fullState, setFullState] = useLocalStorage<T>(key, initialValue);
-  return [selector(fullState), setFullState];
+): [S, (value: T | ((val: T) => T)) => void, boolean] {
+  const [fullState, setFullState, isInitialized] = useLocalStorage<T>(key, initialValue);
+  return [selector(fullState), setFullState, isInitialized];
 } 

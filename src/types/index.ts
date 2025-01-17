@@ -29,17 +29,19 @@ export interface OneTimePersonalExpense extends BaseExpense {
 }
 
 export interface Day {
+  id: string;
   date: string;
-  travelers: string[]; // traveler IDs
-  expenses: {
-    dailyShared: Record<string, string[]>; // expense ID -> traveler IDs
-    dailyPersonal: Record<string, string[]>;
-  };
+}
+
+export interface DailyExpenses {
+  dailyShared: Record<string, string[]>; // expense ID -> traveler IDs
+  dailyPersonal: Record<string, string[]>;
 }
 
 export interface UsageCosts {
   oneTimeShared: Record<string, string[]>; // expense ID -> traveler IDs
   oneTimePersonal: Record<string, string[]>;
+  days: Record<string, DailyExpenses>; // day ID -> daily expenses
 }
 
 export interface TripState {

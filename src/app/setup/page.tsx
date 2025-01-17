@@ -1,30 +1,31 @@
 'use client';
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { TripState } from '@/types';
+import { TripState, Day } from '@/types';
 import { currencies } from '@/data/currencies';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { initialTripState } from '@/constants/initialState';
 
-const initialState: TripState = {
-  travelers: [],
-  dailySharedExpenses: [],
-  dailyPersonalExpenses: [],
-  oneTimeSharedExpenses: [],
-  oneTimePersonalExpenses: [],
-  days: [],
-  usageCosts: {
-    oneTimeShared: {},
-    oneTimePersonal: {},
-  },
-  baseCurrency: 'USD',
-  startDate: '',
-  endDate: '',
-};
+function getDaysBetweenDates(startDate: string, endDate: string): Day[] {
+  const days: Day[] = [];
+  const currentDate = new Date(startDate);
+  const lastDate = new Date(endDate);
+
+  while (currentDate <= lastDate) {
+    days.push({
+      id: crypto.randomUUID(),
+      date: currentDate.toISOString().split('T')[0],
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return days;
+}
 
 export default function SetupPage() {
   const router = useRouter();
-  const [tripState, setTripState] = useLocalStorage<TripState>('tripState', initialState);
+  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
   const [error, setError] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -44,15 +45,32 @@ export default function SetupPage() {
       return;
     }
 
+    const days = getDaysBetweenDates(startDate, endDate);
+
     setTripState({
       ...tripState,
       startDate,
       endDate,
       baseCurrency: currency,
+      days,
     });
 
     router.push('/travelers');
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Trip Setup</h1>
+        <div className="animate-pulse">
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
+          <div className="space-y-4">
+            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">

@@ -2,33 +2,17 @@
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState, DailySharedExpense, DailyPersonalExpense, OneTimeSharedExpense, OneTimePersonalExpense } from '@/types';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tab } from '@headlessui/react';
 import { classNames } from '@/utils/classNames';
 import { ConfirmationDialog } from '@/components/ConfirmationDialog';
-
-const initialState: TripState = {
-  travelers: [],
-  dailySharedExpenses: [],
-  dailyPersonalExpenses: [],
-  oneTimeSharedExpenses: [],
-  oneTimePersonalExpenses: [],
-  days: [],
-  usageCosts: {
-    oneTimeShared: {},
-    oneTimePersonal: {},
-  },
-  baseCurrency: 'USD',
-  startDate: '',
-  endDate: '',
-};
+import { initialTripState } from '@/constants/initialState';
 
 export default function ExpensesPage() {
   const router = useRouter();
-  const [tripState, setTripState] = useLocalStorage<TripState>('tripState', initialState);
+  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
   const [error, setError] = useState('');
-  const [mounted, setMounted] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<{
     id: string;
     type: 'dailyShared' | 'dailyPersonal' | 'oneTimeShared' | 'oneTimePersonal';
@@ -60,10 +44,6 @@ export default function ExpensesPage() {
     name: '',
     totalCost: '',
   });
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleAddDailySharedExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -244,7 +224,7 @@ export default function ExpensesPage() {
     router.push('/usage');
   };
 
-  if (!mounted) {
+  if (!isInitialized) {
     return (
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Expenses</h1>
@@ -385,6 +365,7 @@ export default function ExpensesPage() {
               ))}
             </div>
           </Tab.Panel>
+
           <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Daily Personal Expenses</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
@@ -454,6 +435,7 @@ export default function ExpensesPage() {
               ))}
             </div>
           </Tab.Panel>
+
           <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">One-time Shared Expenses</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
@@ -523,6 +505,7 @@ export default function ExpensesPage() {
               ))}
             </div>
           </Tab.Panel>
+
           <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">One-time Personal Expenses</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
