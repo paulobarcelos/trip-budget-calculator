@@ -10,10 +10,12 @@ export function Header() {
   const pathname = usePathname();
 
   const navigation = [
+    { name: 'Instructions', href: '/' },
     { name: 'Setup', href: '/setup' },
     { name: 'Travelers', href: '/travelers' },
     { name: 'Expenses', href: '/expenses' },
     { name: 'Usage', href: '/usage' },
+    { name: 'Budget', href: '/budget' },
   ];
 
   return (
