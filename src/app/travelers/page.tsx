@@ -124,11 +124,11 @@ export default function TravelersPage() {
   if (!mounted) {
     return (
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">Add Travelers</h1>
+        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Add Travelers</h1>
         <div className="animate-pulse">
-          <div className="h-12 bg-gray-200 rounded mb-8"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
           <div className="space-y-4">
-            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
           </div>
         </div>
       </div>
@@ -137,12 +137,12 @@ export default function TravelersPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900">Add Travelers</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Add Travelers</h1>
       
       <form onSubmit={handleAddTraveler} className="mb-8 space-y-4">
         <div className="flex gap-4">
           <div className="flex-grow">
-            <label htmlFor="travelerName" className="block text-sm font-medium text-gray-900 mb-1">
+            <label htmlFor="travelerName" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
               Name
             </label>
             <input
@@ -152,13 +152,13 @@ export default function TravelersPage() {
               value={newTravelerName}
               onChange={(e) => setNewTravelerName(e.target.value)}
               placeholder="Enter traveler name"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
             />
           </div>
         </div>
         <div className="flex gap-4">
           <div className="flex-1">
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-900 mb-1">
+            <label htmlFor="startDate" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
               Start Date
             </label>
             <input
@@ -169,11 +169,11 @@ export default function TravelersPage() {
               min={minDate}
               max={maxDate}
               onChange={(e) => setNewTravelerStartDate(e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
             />
           </div>
           <div className="flex-1">
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-900 mb-1">
+            <label htmlFor="endDate" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
               End Date
             </label>
             <input
@@ -184,14 +184,14 @@ export default function TravelersPage() {
               min={minDate}
               max={maxDate}
               onChange={(e) => setNewTravelerEndDate(e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
             />
           </div>
         </div>
         <div>
           <button
             type="submit"
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
           >
             Add Traveler
           </button>
@@ -199,10 +199,10 @@ export default function TravelersPage() {
       </form>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-6">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/50 p-4 mb-6">
           <div className="flex">
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">{error}</h3>
             </div>
           </div>
         </div>
@@ -212,20 +212,20 @@ export default function TravelersPage() {
         {tripState.travelers.map((traveler) => (
           <div
             key={traveler.id}
-            className="p-4 bg-white rounded-lg shadow space-y-4"
+            className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow space-y-4 border border-gray-200 dark:border-gray-700"
           >
             <div className="flex justify-between items-center">
-              <span className="text-gray-900 font-medium">{traveler.name}</span>
+              <span className="text-gray-900 dark:text-gray-100 font-medium">{traveler.name}</span>
               <button
                 onClick={() => setTravelerToDelete(traveler)}
-                className="text-red-600 hover:text-red-800"
+                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
               >
                 Remove
               </button>
             </div>
             <div className="flex gap-4">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Start Date
                 </label>
                 <input
@@ -234,11 +234,11 @@ export default function TravelersPage() {
                   min={minDate}
                   max={maxDate}
                   onChange={(e) => handleUpdateTravelerDates(traveler.id, e.target.value, traveler.endDate)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   End Date
                 </label>
                 <input
@@ -247,7 +247,7 @@ export default function TravelersPage() {
                   min={minDate}
                   max={maxDate}
                   onChange={(e) => handleUpdateTravelerDates(traveler.id, traveler.startDate, e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                 />
               </div>
             </div>
@@ -257,7 +257,7 @@ export default function TravelersPage() {
 
       <button
         onClick={handleContinue}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
       >
         Continue to Expenses
       </button>
