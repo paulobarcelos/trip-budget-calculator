@@ -17,7 +17,7 @@ interface TravelerCosts {
 }
 
 export default function BudgetPage() {
-  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
+  const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
 
   if (!isInitialized) {
     return (
