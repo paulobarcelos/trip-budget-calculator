@@ -3,6 +3,8 @@
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
 import { initialTripState } from '@/constants/initialState';
+import { Currency, convertCurrency, formatCurrency } from '@/utils/currencyConversion';
+import { currencies } from '@/data/currencies';
 import { calculateDailyCost } from '@/utils/tripStateUpdates';
 
 interface TravelerCosts {
@@ -19,6 +21,18 @@ interface TravelerCosts {
 
 export default function BudgetPage() {
   const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
+  const [displayCurrency, setDisplayCurrency] = useLocalStorage<Currency>(
+    'displayCurrency',
+    tripState.baseCurrency
+  );
+
+  const formatAmount = (amount: number, isConverted: boolean = false) => {
+    if (displayCurrency === tripState.baseCurrency) {
+      return formatCurrency(amount, displayCurrency as Currency);
+    }
+    const converted = convertCurrency(amount, tripState.baseCurrency as Currency, displayCurrency);
+    return formatCurrency(converted, displayCurrency, isConverted);
+  };
 
   if (!isInitialized) {
     return (
@@ -117,89 +131,88 @@ export default function BudgetPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Budget Summary</h1>
-
-      <div className="mb-8">
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Grand Total</h2>
-          <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-            {grandTotal.toFixed(2)} {tripState.baseCurrency}
-          </p>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Budget Summary</h1>
+        <div className="flex items-center gap-4">
+          <label htmlFor="currency" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            View in
+          </label>
+          <select
+            id="currency"
+            value={displayCurrency}
+            onChange={(e) => setDisplayCurrency(e.target.value as Currency)}
+            className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+          >
+            {currencies.map((currency) => (
+              <option key={currency.code} value={currency.code}>
+                {currency.code}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div className="space-y-6">
-        {tripState.travelers.map(traveler => {
-          const costs = travelerCosts.get(traveler.id);
-          if (!costs) return null;
+      <div className="space-y-8">
+        {/* Per Traveler Breakdown */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Cost per Traveler</h2>
+          <div className="space-y-6">
+            {tripState.travelers.map(traveler => {
+              const costs = travelerCosts.get(traveler.id);
+              if (!costs) return null;
 
-          return (
-            <div key={traveler.id} className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-              <div className="p-6">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">{traveler.name}</h2>
-                <p className="text-2xl font-bold text-primary-600 dark:text-primary-400 mb-6">
-                  {costs.total.toFixed(2)} {tripState.baseCurrency}
-                </p>
-
-                <div className="space-y-4">
-                  {/* Shared Expenses */}
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Shared Expenses</h3>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">Daily</span>
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {costs.shared.daily.toFixed(2)} {tripState.baseCurrency}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">One-time</span>
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {costs.shared.oneTime.toFixed(2)} {tripState.baseCurrency}
-                        </span>
-                      </div>
-                      <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex justify-between text-sm font-medium">
-                          <span className="text-gray-900 dark:text-gray-100">Total Shared</span>
-                          <span className="text-gray-900 dark:text-gray-100">
-                            {(costs.shared.daily + costs.shared.oneTime).toFixed(2)} {tripState.baseCurrency}
-                          </span>
-                        </div>
-                      </div>
+              return (
+                <div key={traveler.id} className="border-t border-gray-200 dark:border-gray-700 pt-4 first:border-0 first:pt-0">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{traveler.name}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Daily Shared Expenses</p>
+                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.shared.daily, true)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Daily Personal Expenses</p>
+                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.personal.daily, true)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">One-time Shared Expenses</p>
+                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.shared.oneTime, true)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">One-time Personal Expenses</p>
+                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.personal.oneTime, true)}
+                      </p>
                     </div>
                   </div>
-
-                  {/* Personal Expenses */}
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Personal Expenses</h3>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">Daily</span>
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {costs.personal.daily.toFixed(2)} {tripState.baseCurrency}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">One-time</span>
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {costs.personal.oneTime.toFixed(2)} {tripState.baseCurrency}
-                        </span>
-                      </div>
-                      <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex justify-between text-sm font-medium">
-                          <span className="text-gray-900 dark:text-gray-100">Total Personal</span>
-                          <span className="text-gray-900 dark:text-gray-100">
-                            {(costs.personal.daily + costs.personal.oneTime).toFixed(2)} {tripState.baseCurrency}
-                          </span>
-                        </div>
-                      </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex justify-between items-center">
+                      <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">Total</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.total, true)}
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Grand Total */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Grand Total</h2>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {formatAmount(grandTotal, true)}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
