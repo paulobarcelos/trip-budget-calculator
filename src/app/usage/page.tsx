@@ -101,14 +101,23 @@ export default function UsagePage() {
                                             return d;
                                           });
 
+                                          // Get all travelers present on this day
+                                          const presentTravelers = tripState.travelers
+                                            .filter(traveler => 
+                                              new Date(day.date) >= new Date(traveler.startDate) && 
+                                              new Date(day.date) <= new Date(traveler.endDate)
+                                            )
+                                            .map(t => t.id);
+
                                           const newUsageCosts = {
                                             ...prev.usageCosts,
                                             days: {
                                               ...prev.usageCosts.days,
                                               [day.id]: {
+                                                ...prev.usageCosts.days[day.id] ?? {},
                                                 dailyShared: {
                                                   ...prev.usageCosts.days[day.id]?.dailyShared ?? {},
-                                                  [expense.id]: []
+                                                  [expense.id]: presentTravelers
                                                 },
                                                 dailyPersonal: prev.usageCosts.days[day.id]?.dailyPersonal ?? {}
                                               }
@@ -136,11 +145,12 @@ export default function UsagePage() {
                                             days: {
                                               ...prev.usageCosts.days,
                                               [day.id]: {
-                                                dailyShared: {
-                                                  ...prev.usageCosts.days[day.id]?.dailyShared ?? {},
+                                                ...prev.usageCosts.days[day.id] ?? {},
+                                                dailyPersonal: {
+                                                  ...prev.usageCosts.days[day.id]?.dailyPersonal ?? {},
                                                   [expense.id]: []
                                                 },
-                                                dailyPersonal: prev.usageCosts.days[day.id]?.dailyPersonal ?? {}
+                                                dailyShared: prev.usageCosts.days[day.id]?.dailyShared ?? {}
                                               }
                                             }
                                           };
@@ -236,16 +246,24 @@ export default function UsagePage() {
                                           return d;
                                         });
 
+                                        // Get all travelers present on this day
+                                        const presentTravelers = tripState.travelers
+                                          .filter(traveler => 
+                                            new Date(day.date) >= new Date(traveler.startDate) && 
+                                            new Date(day.date) <= new Date(traveler.endDate)
+                                          )
+                                          .map(t => t.id);
+
                                         const newUsageCosts = {
                                           ...prev.usageCosts,
                                           days: {
                                             ...prev.usageCosts.days,
                                             [day.id]: {
-                                              dailyShared: {
-                                                ...prev.usageCosts.days[day.id]?.dailyShared ?? {},
-                                                [expense.id]: []
-                                              },
-                                              dailyPersonal: prev.usageCosts.days[day.id]?.dailyPersonal ?? {}
+                                              dailyShared: prev.usageCosts.days[day.id]?.dailyShared ?? {},
+                                              dailyPersonal: {
+                                                ...prev.usageCosts.days[day.id]?.dailyPersonal ?? {},
+                                                [expense.id]: presentTravelers
+                                              }
                                             }
                                           }
                                         };
@@ -271,11 +289,12 @@ export default function UsagePage() {
                                           days: {
                                             ...prev.usageCosts.days,
                                             [day.id]: {
-                                              dailyShared: {
-                                                ...prev.usageCosts.days[day.id]?.dailyShared ?? {},
+                                              ...prev.usageCosts.days[day.id] ?? {},
+                                              dailyPersonal: {
+                                                ...prev.usageCosts.days[day.id]?.dailyPersonal ?? {},
                                                 [expense.id]: []
                                               },
-                                              dailyPersonal: prev.usageCosts.days[day.id]?.dailyPersonal ?? {}
+                                              dailyShared: prev.usageCosts.days[day.id]?.dailyShared ?? {}
                                             }
                                           }
                                         };
