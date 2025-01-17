@@ -1,32 +1,45 @@
-// Currency conversion rates (to be replaced with API call)
-// All rates are relative to USD
-const CONVERSION_RATES: Record<string, number> = {
-  'USD': 1,
-  'EUR': 0.91,
-  'GBP': 0.79,
-  'BRL': 4.97,
-};
+import { currencies } from '@/data/currencies';
 
-export type Currency = string;
+export async function getExchangeRates() {
+  const res = await fetch(
+    `https://openexchangerates.org/api/latest.json?app_id=${process.env.OPEN_EXCHANGE_RATES_APP_ID}&symbols=${currencies.map(c => c.code).join(',')}`,
+    { next: { revalidate: 3600 } } // Revalidate every hour
+  );
 
-export function convertCurrency(amount: number, from: Currency, to: Currency): number {
-  if (from === to) return amount;
-  
-  // Convert to USD first
-  const amountInUSD = from === 'USD' ? amount : amount / CONVERSION_RATES[from];
-  
-  // Then convert from USD to target currency
-  return to === 'USD' ? amountInUSD : amountInUSD * CONVERSION_RATES[to];
+  if (!res.ok) {
+    // Fallback rates if API fails
+    return {
+      base: 'USD',
+      rates: {
+        USD: 1,
+        EUR: 0.85,
+        GBP: 0.73,
+        BRL: 4.92,
+      }
+    };
+  }
+
+  return res.json();
 }
 
-export function formatCurrency(amount: number, currency: Currency, isConverted: boolean = false): string {
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+export async function convertCurrency(amount: number, fromCurrency: string, toCurrency: string): Promise<number> {
+  const { base, rates } = await getExchangeRates();
+  
+  // If currencies are the same, no conversion needed
+  if (fromCurrency === toCurrency) return amount;
+  
+  // Convert to USD first (base currency)
+  const amountInUSD = fromCurrency === base 
+    ? amount 
+    : amount / rates[fromCurrency];
+    
+  // Convert from USD to target currency
+  return amountInUSD * rates[toCurrency];
+}
 
-  const formatted = formatter.format(amount);
-  return isConverted ? `~${formatted}` : formatted;
+export async function formatCurrency(amount: number, fromCurrency: string, toCurrency: string): Promise<string> {
+  const convertedAmount = await convertCurrency(amount, fromCurrency, toCurrency);
+  const isConverted = fromCurrency !== toCurrency;
+  
+  return `${isConverted ? '~' : ''}${convertedAmount.toFixed(2)} ${toCurrency}`;
 } 

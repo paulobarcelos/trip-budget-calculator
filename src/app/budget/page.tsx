@@ -3,9 +3,10 @@
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
 import { initialTripState } from '@/constants/initialState';
-import { Currency, convertCurrency, formatCurrency } from '@/utils/currencyConversion';
 import { currencies } from '@/data/currencies';
 import { calculateDailyCost } from '@/utils/tripStateUpdates';
+import { formatCurrency } from '@/utils/currencyFormatting';
+import { useEffect, useState } from 'react';
 
 interface TravelerCosts {
   shared: {
@@ -21,20 +22,29 @@ interface TravelerCosts {
 
 export default function BudgetPage() {
   const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
-  const [displayCurrency, setDisplayCurrency] = useLocalStorage<Currency>(
+  const [displayCurrency, setDisplayCurrency] = useLocalStorage<string>(
     'displayCurrency',
     tripState.baseCurrency
   );
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const formatAmount = (amount: number, isConverted: boolean = false) => {
-    if (displayCurrency === tripState.baseCurrency) {
-      return formatCurrency(amount, displayCurrency as Currency);
+  useEffect(() => {
+    async function fetchRates() {
+      try {
+        const response = await fetch('/api/exchange-rates');
+        const data = await response.json();
+        setExchangeRates(data.rates);
+      } catch (error) {
+        console.error('Failed to fetch exchange rates:', error);
+      } finally {
+        setIsLoading(false);
+      }
     }
-    const converted = convertCurrency(amount, tripState.baseCurrency as Currency, displayCurrency);
-    return formatCurrency(converted, displayCurrency, isConverted);
-  };
+    fetchRates();
+  }, []);
 
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     return (
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Budget Summary</h1>
@@ -61,12 +71,9 @@ export default function BudgetPage() {
   });
 
   // Calculate daily shared expenses
-  tripState.days.forEach(day => {
-    const dayExpenses = tripState.usageCosts.days[day.id];
-    if (!dayExpenses) return;
-
-    // Daily shared expenses
-    Object.entries(dayExpenses.dailyShared).forEach(([expenseId, travelerIds]) => {
+  Object.entries(tripState.usageCosts.days).forEach(([, dailyExpenses]) => {
+    // Handle shared expenses
+    Object.entries(dailyExpenses.dailyShared).forEach(([expenseId, travelerIds]) => {
       const expense = tripState.dailySharedExpenses.find(e => e.id === expenseId);
       if (!expense || travelerIds.length === 0) return;
 
@@ -82,10 +89,10 @@ export default function BudgetPage() {
       });
     });
 
-    // Daily personal expenses
-    Object.entries(dayExpenses.dailyPersonal).forEach(([expenseId, travelerIds]) => {
+    // Handle personal expenses
+    Object.entries(dailyExpenses.dailyPersonal).forEach(([expenseId, travelerIds]) => {
       const expense = tripState.dailyPersonalExpenses.find(e => e.id === expenseId);
-      if (!expense) return;
+      if (!expense || travelerIds.length === 0) return;
 
       travelerIds.forEach(travelerId => {
         const costs = travelerCosts.get(travelerId);
@@ -129,6 +136,18 @@ export default function BudgetPage() {
   // Calculate grand total
   const grandTotal = Array.from(travelerCosts.values()).reduce((sum, costs) => sum + costs.total, 0);
 
+  // Function to convert and format amount
+  function formatAmount(amount: number): string {
+    if (!exchangeRates || displayCurrency === tripState.baseCurrency) {
+      return formatCurrency(amount, displayCurrency);
+    }
+
+    // Convert through USD
+    const amountInUSD = amount / exchangeRates[tripState.baseCurrency];
+    const convertedAmount = amountInUSD * exchangeRates[displayCurrency];
+    return formatCurrency(convertedAmount, displayCurrency, true);
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-8">
@@ -140,7 +159,7 @@ export default function BudgetPage() {
           <select
             id="currency"
             value={displayCurrency}
-            onChange={(e) => setDisplayCurrency(e.target.value as Currency)}
+            onChange={(e) => setDisplayCurrency(e.target.value)}
             className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
           >
             {currencies.map((currency) => (
@@ -153,48 +172,54 @@ export default function BudgetPage() {
       </div>
 
       <div className="space-y-8">
-        {/* Per Traveler Breakdown */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Cost per Traveler</h2>
-          <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {tripState.travelers.map(traveler => {
-              const costs = travelerCosts.get(traveler.id);
-              if (!costs) return null;
-
+              const costs = travelerCosts.get(traveler.id)!;
               return (
-                <div key={traveler.id} className="border-t border-gray-200 dark:border-gray-700 pt-4 first:border-0 first:pt-0">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{traveler.name}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Daily Shared Expenses</p>
-                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.shared.daily, true)}
+                <div key={traveler.id} className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    {traveler.name}
+                  </h3>
+
+                  {/* Shared Expenses */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Daily Shared</p>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.shared.daily)}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Daily Personal Expenses</p>
-                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.personal.daily, true)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">One-time Shared Expenses</p>
-                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.shared.oneTime, true)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">One-time Personal Expenses</p>
-                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.personal.oneTime, true)}
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">One-time Shared</p>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.shared.oneTime)}
                       </p>
                     </div>
                   </div>
+
+                  {/* Personal Expenses */}
+                  <div className="space-y-2 mt-4">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Daily Personal</p>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.personal.daily)}
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">One-time Personal</p>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        {formatAmount(costs.personal.oneTime)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Total */}
                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex justify-between items-center">
                       <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">Total</p>
                       <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.total, true)}
+                        {formatAmount(costs.total)}
                       </p>
                     </div>
                   </div>
@@ -209,7 +234,7 @@ export default function BudgetPage() {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Grand Total</h2>
             <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {formatAmount(grandTotal, true)}
+              {formatAmount(grandTotal)}
             </p>
           </div>
         </div>
