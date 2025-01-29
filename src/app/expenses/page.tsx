@@ -9,6 +9,8 @@ import { classNames } from '@/utils/classNames';
 import { ConfirmationDialog } from '@/components/ConfirmationDialog';
 import { initialTripState } from '@/constants/initialState';
 import { currencies } from '@/data/currencies';
+import { Instructions } from '@/components/Instructions';
+import { instructions } from './instructions';
 
 export default function ExpensesPage() {
   const router = useRouter();
@@ -510,6 +512,7 @@ export default function ExpensesPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Expenses</h1>
+      <Instructions text={instructions} />
 
       <Tab.Group>
         <Tab.List className="flex space-x-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">

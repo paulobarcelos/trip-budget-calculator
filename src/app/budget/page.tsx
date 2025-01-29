@@ -7,6 +7,8 @@ import { initialTripState } from '@/constants/initialState';
 import { formatCurrency } from '@/utils/currencyFormatting';
 import { convertCurrency } from '@/utils/currencyConversion';
 import { currencies } from '@/data/currencies';
+import { Instructions } from '@/components/Instructions';
+import { instructions } from './instructions';
 
 export default function BudgetPage() {
   const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
@@ -33,6 +35,7 @@ export default function BudgetPage() {
     return (
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Budget Summary</h1>
+        <Instructions text={instructions} />
         <div className="animate-pulse">
           <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
           <div className="space-y-4">
@@ -157,8 +160,9 @@ export default function BudgetPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Budget Summary</h1>
+      <Instructions text={instructions} />
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Budget Summary</h1>
         <div className="flex items-center gap-4">
           <label htmlFor="currency" className="text-sm font-medium text-gray-700 dark:text-gray-300">
             View in

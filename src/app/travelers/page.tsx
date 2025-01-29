@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { ConfirmationDialog } from '@/components/ConfirmationDialog';
 import { initialTripState } from '@/constants/initialState';
 import { updateTravelerDates } from '@/utils/tripStateUpdates';
+import { Instructions } from '@/components/Instructions';
+import { instructions } from './instructions';
 
 interface TravelerToDelete {
   id: string;
@@ -93,6 +95,7 @@ export default function TravelersPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Travelers</h1>
+      <Instructions text={instructions} />
 
       <form onSubmit={handleAddTraveler} className="mb-8 space-y-4 bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700">
         <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Add Traveler</h2>

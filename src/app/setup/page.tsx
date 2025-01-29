@@ -6,6 +6,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { initialTripState } from '@/constants/initialState';
 import { updateTripDates } from '@/utils/tripStateUpdates';
+import { Instructions } from '@/components/Instructions';
+import { instructions } from './instructions';
 
 export default function SetupPage() {
   const router = useRouter();
@@ -43,7 +45,8 @@ export default function SetupPage() {
   if (!isInitialized) {
     return (
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Setup</h1>
+        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Setup Trip</h1>
+        <Instructions text={instructions} />
         <div className="animate-pulse">
           <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
           <div className="space-y-4">
@@ -56,7 +59,8 @@ export default function SetupPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Setup</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Setup Trip</h1>
+      <Instructions text={instructions} />
       <div className="space-y-6">
         <div>
           <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">

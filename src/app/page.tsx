@@ -12,7 +12,7 @@ export default function Home() {
       <h2 className="text-gray-900 dark:text-gray-100">Getting Started</h2>
       <ol className="text-gray-600 dark:text-gray-300">
         <li>
-          <Link href="/setup" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">Set up your trip dates and currency</Link>
+          <Link href="/setup" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">Set up your trip dates</Link>
         </li>
         <li>
           <Link href="/travelers" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">Add travelers and their dates</Link>

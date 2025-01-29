@@ -7,6 +7,8 @@ import { Tab } from '@headlessui/react';
 import { classNames } from '@/utils/classNames';
 import { initialTripState } from '@/constants/initialState';
 import { calculateDailyCost } from '@/utils/tripStateUpdates';
+import { Instructions } from '@/components/Instructions';
+import { instructions } from './instructions';
 
 export default function UsagePage() {
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function UsagePage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Usage</h1>
+      <Instructions text={instructions} />
 
       <Tab.Group>
         <Tab.List className="flex space-x-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
