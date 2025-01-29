@@ -13,4 +13,4 @@ export function formatCurrency(amount: number, currencyCode: string, isApproxima
   });
 
   return `${isApproximation ? '~' : ''}${formatter.format(amount)}`;
-} 
+}

@@ -1,31 +1,16 @@
 'use client';
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { TripState } from '@/types';
+import { TripState, DailyPersonalExpense } from '@/types';
+import { useState, useEffect } from 'react';
 import { initialTripState } from '@/constants/initialState';
-import { currencies } from '@/data/currencies';
-import { calculateDailyCost } from '@/utils/tripStateUpdates';
 import { formatCurrency } from '@/utils/currencyFormatting';
-import { useEffect, useState } from 'react';
-
-interface TravelerCosts {
-  shared: {
-    daily: number;
-    oneTime: number;
-  };
-  personal: {
-    daily: number;
-    oneTime: number;
-  };
-  total: number;
-}
+import { convertCurrency } from '@/utils/currencyConversion';
+import { currencies } from '@/data/currencies';
 
 export default function BudgetPage() {
   const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
-  const [displayCurrency, setDisplayCurrency] = useLocalStorage<string>(
-    'displayCurrency',
-    tripState.baseCurrency
-  );
+  const [displayCurrency, setDisplayCurrency] = useLocalStorage<string>('displayCurrency', tripState.baseCurrency);
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -44,7 +29,7 @@ export default function BudgetPage() {
     fetchRates();
   }, []);
 
-  if (!isInitialized || isLoading) {
+  if (!isInitialized || isLoading || !exchangeRates) {
     return (
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Budget Summary</h1>
@@ -58,10 +43,41 @@ export default function BudgetPage() {
     );
   }
 
-  // Calculate costs for each traveler
-  const travelerCosts = new Map<string, TravelerCosts>();
+  const calculateTotalCost = (expenses: { totalCost: number; currency: string }[]) => {
+    return expenses.reduce((total, expense) => {
+      const convertedCost = convertCurrency(expense.totalCost, expense.currency, displayCurrency, exchangeRates!);
+      return total + convertedCost;
+    }, 0);
+  };
 
-  // Initialize costs for each traveler
+  const calculateDailyCost = (totalCost: number, startDate: string, endDate: string, currency: string): number => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const dailyCost = totalCost / days;
+    return convertCurrency(dailyCost, currency, displayCurrency, exchangeRates!);
+  };
+
+  const calculateDailyExpensesTotal = (expenses: DailyPersonalExpense[]) => {
+    return expenses.reduce((total, expense) => {
+      const convertedCost = convertCurrency(expense.dailyCost, expense.currency, displayCurrency, exchangeRates!);
+      return total + convertedCost;
+    }, 0);
+  };
+
+  const oneTimeSharedTotal = calculateTotalCost(tripState.oneTimeSharedExpenses);
+  const oneTimePersonalTotal = calculateTotalCost(tripState.oneTimePersonalExpenses);
+  const dailySharedTotal = tripState.dailySharedExpenses.reduce((total, expense) => {
+    return total + calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate, expense.currency);
+  }, 0);
+  const dailyPersonalTotal = calculateDailyExpensesTotal(tripState.dailyPersonalExpenses);
+
+  const totalDailyCost = dailySharedTotal + dailyPersonalTotal;
+  const totalOneTimeCost = oneTimeSharedTotal + oneTimePersonalTotal;
+  const totalCost = totalDailyCost + totalOneTimeCost;
+
+  const travelerCosts = new Map<string, { shared: { daily: number; oneTime: number }; personal: { daily: number; oneTime: number }; total: number }>();
+
   tripState.travelers.forEach(traveler => {
     travelerCosts.set(traveler.id, {
       shared: { daily: 0, oneTime: 0 },
@@ -70,16 +86,14 @@ export default function BudgetPage() {
     });
   });
 
-  // Calculate daily shared expenses
   Object.entries(tripState.usageCosts.days).forEach(([, dailyExpenses]) => {
-    // Handle shared expenses
     Object.entries(dailyExpenses.dailyShared).forEach(([expenseId, travelerIds]) => {
       const expense = tripState.dailySharedExpenses.find(e => e.id === expenseId);
       if (!expense || travelerIds.length === 0) return;
 
-      const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate);
+      const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate, expense.currency);
       const costPerPerson = dailyCost / travelerIds.length;
-      
+
       travelerIds.forEach(travelerId => {
         const costs = travelerCosts.get(travelerId);
         if (costs) {
@@ -89,27 +103,28 @@ export default function BudgetPage() {
       });
     });
 
-    // Handle personal expenses
     Object.entries(dailyExpenses.dailyPersonal).forEach(([expenseId, travelerIds]) => {
       const expense = tripState.dailyPersonalExpenses.find(e => e.id === expenseId);
       if (!expense || travelerIds.length === 0) return;
 
+      const dailyCost = calculateDailyExpensesTotal([expense]);
+
       travelerIds.forEach(travelerId => {
         const costs = travelerCosts.get(travelerId);
         if (costs) {
-          costs.personal.daily += expense.dailyCost;
-          costs.total += expense.dailyCost;
+          costs.personal.daily += dailyCost;
+          costs.total += dailyCost;
         }
       });
     });
   });
 
-  // Calculate one-time shared expenses
   Object.entries(tripState.usageCosts.oneTimeShared).forEach(([expenseId, travelerIds]) => {
     const expense = tripState.oneTimeSharedExpenses.find(e => e.id === expenseId);
     if (!expense || travelerIds.length === 0) return;
 
-    const costPerPerson = expense.totalCost / travelerIds.length;
+    const costPerPerson = calculateTotalCost([expense]) / travelerIds.length;
+
     travelerIds.forEach(travelerId => {
       const costs = travelerCosts.get(travelerId);
       if (costs) {
@@ -119,33 +134,25 @@ export default function BudgetPage() {
     });
   });
 
-  // Calculate one-time personal expenses
   Object.entries(tripState.usageCosts.oneTimePersonal).forEach(([expenseId, travelerIds]) => {
     const expense = tripState.oneTimePersonalExpenses.find(e => e.id === expenseId);
     if (!expense) return;
 
+    const totalCost = calculateTotalCost([expense]);
+
     travelerIds.forEach(travelerId => {
       const costs = travelerCosts.get(travelerId);
       if (costs) {
-        costs.personal.oneTime += expense.totalCost;
-        costs.total += expense.totalCost;
+        costs.personal.oneTime += totalCost;
+        costs.total += totalCost;
       }
     });
   });
 
-  // Calculate grand total
   const grandTotal = Array.from(travelerCosts.values()).reduce((sum, costs) => sum + costs.total, 0);
 
-  // Function to convert and format amount
   function formatAmount(amount: number): string {
-    if (!exchangeRates || displayCurrency === tripState.baseCurrency) {
-      return formatCurrency(amount, displayCurrency);
-    }
-
-    // Convert through USD
-    const amountInUSD = amount / exchangeRates[tripState.baseCurrency];
-    const convertedAmount = amountInUSD * exchangeRates[displayCurrency];
-    return formatCurrency(convertedAmount, displayCurrency, true);
+    return formatCurrency(amount, displayCurrency);
   }
 
   return (
@@ -238,7 +245,50 @@ export default function BudgetPage() {
             </p>
           </div>
         </div>
+
+        {/* Cost Summary */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">Cost Summary</h2>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Daily Costs</h3>
+              <div className="mt-2 space-y-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Shared: {formatAmount(dailySharedTotal)} per day
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Personal: {formatAmount(dailyPersonalTotal)} per day
+                </p>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Total: {formatAmount(totalDailyCost)} per day
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">One-time Costs</h3>
+              <div className="mt-2 space-y-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Shared: {formatAmount(oneTimeSharedTotal)}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Personal: {formatAmount(oneTimePersonalTotal)}
+                </p>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Total: {formatAmount(totalOneTimeCost)}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Total Cost</h3>
+              <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {formatAmount(totalCost)}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
-} 
+}

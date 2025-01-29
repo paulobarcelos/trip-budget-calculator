@@ -8,6 +8,7 @@ export interface Traveler {
 export interface BaseExpense {
   id: string;
   name: string;
+  currency: string;
 }
 
 export interface DailySharedExpense extends BaseExpense {
@@ -52,7 +53,7 @@ export interface TripState {
   oneTimePersonalExpenses: OneTimePersonalExpense[];
   days: Day[];
   usageCosts: UsageCosts;
-  baseCurrency: string;
   startDate: string;
   endDate: string;
+  baseCurrency: string;
 } 

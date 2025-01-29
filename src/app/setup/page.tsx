@@ -2,10 +2,10 @@
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { initialTripState } from '@/constants/initialState';
 import { updateTripDates } from '@/utils/tripStateUpdates';
-import { useState, useEffect } from 'react';
 
 export default function SetupPage() {
   const router = useRouter();
@@ -13,7 +13,6 @@ export default function SetupPage() {
   const [formState, setFormState] = useState(() => ({
     startDate: initialTripState.startDate,
     endDate: initialTripState.endDate,
-    baseCurrency: initialTripState.baseCurrency
   }));
 
   // Initialize form state from tripState only once when isInitialized becomes true
@@ -22,7 +21,6 @@ export default function SetupPage() {
       setFormState({
         startDate: tripState.startDate,
         endDate: tripState.endDate,
-        baseCurrency: tripState.baseCurrency
       });
     }
   }, [isInitialized, tripState]); // Only run when isInitialized changes
@@ -35,10 +33,7 @@ export default function SetupPage() {
       // Only update trip state if we have all required values
       if (isInitialized && newState.startDate && newState.endDate) {
         const updatedTripState = updateTripDates(tripState, newState.startDate, newState.endDate);
-        setTripState({
-          ...updatedTripState,
-          baseCurrency: newState.baseCurrency
-        });
+        setTripState(updatedTripState);
       }
       
       return newState;
@@ -62,7 +57,6 @@ export default function SetupPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Setup</h1>
-
       <div className="space-y-6">
         <div>
           <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -92,30 +86,6 @@ export default function SetupPage() {
             onChange={(e) => handleFormChange({ endDate: e.target.value })}
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
           />
-        </div>
-
-        <div>
-          <label htmlFor="baseCurrency" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Base Currency
-          </label>
-          <select
-            id="baseCurrency"
-            name="baseCurrency"
-            required
-            value={formState.baseCurrency}
-            onChange={(e) => handleFormChange({ baseCurrency: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
-          >
-            <option value="USD">USD - US Dollar</option>
-            <option value="EUR">EUR - Euro</option>
-            <option value="GBP">GBP - British Pound</option>
-            <option value="JPY">JPY - Japanese Yen</option>
-            <option value="AUD">AUD - Australian Dollar</option>
-            <option value="CAD">CAD - Canadian Dollar</option>
-            <option value="CHF">CHF - Swiss Franc</option>
-            <option value="CNY">CNY - Chinese Yuan</option>
-            <option value="BRL">BRL - Brazilian Real</option>
-          </select>
         </div>
 
         <button

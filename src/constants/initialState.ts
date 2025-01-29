@@ -12,7 +12,6 @@ export const initialTripState: TripState = {
     oneTimePersonal: {} as Record<string, string[]>,
     days: {} as Record<string, DailyExpenses>,
   },
-  baseCurrency: 'USD',
   startDate: '',
   endDate: '',
 }; 

@@ -8,6 +8,7 @@ import { Tab } from '@headlessui/react';
 import { classNames } from '@/utils/classNames';
 import { ConfirmationDialog } from '@/components/ConfirmationDialog';
 import { initialTripState } from '@/constants/initialState';
+import { currencies } from '@/data/currencies';
 
 export default function ExpensesPage() {
   const router = useRouter();
@@ -30,37 +31,40 @@ export default function ExpensesPage() {
     totalCost: '',
     startDate: tripState.startDate,
     endDate: tripState.endDate,
+    currency: 'USD',
   });
 
   // Daily Personal Expense form state
   const [newDailyPersonalExpense, setNewDailyPersonalExpense] = useState({
     name: '',
     dailyCost: '',
+    currency: 'USD',
   });
 
   // One-time Shared Expense form state
   const [newOneTimeSharedExpense, setNewOneTimeSharedExpense] = useState({
     name: '',
     totalCost: '',
+    currency: 'USD',
   });
 
   // One-time Personal Expense form state
   const [newOneTimePersonalExpense, setNewOneTimePersonalExpense] = useState({
     name: '',
     totalCost: '',
+    currency: 'USD',
   });
 
   const handleAddDailySharedExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const totalCost = parseFloat(newDailySharedExpense.totalCost);
+    if (isNaN(totalCost)) {
+      setError('Please enter a valid cost');
+      return;
+    }
     
     if (!newDailySharedExpense.name.trim() || !newDailySharedExpense.totalCost || !newDailySharedExpense.startDate || !newDailySharedExpense.endDate) {
       setError('All fields are required');
-      return;
-    }
-
-    const cost = parseFloat(newDailySharedExpense.totalCost);
-    if (isNaN(cost) || cost <= 0) {
-      setError('Cost must be a positive number');
       return;
     }
 
@@ -75,17 +79,18 @@ export default function ExpensesPage() {
       return;
     }
 
-    const newExpense: DailySharedExpense = {
+    const expense: DailySharedExpense = {
       id: crypto.randomUUID(),
       name: newDailySharedExpense.name.trim(),
-      totalCost: cost,
+      totalCost,
       startDate: newDailySharedExpense.startDate,
       endDate: newDailySharedExpense.endDate,
+      currency: newDailySharedExpense.currency,
     };
 
     setTripState({
       ...tripState,
-      dailySharedExpenses: [...tripState.dailySharedExpenses, newExpense]
+      dailySharedExpenses: [...tripState.dailySharedExpenses, expense]
     });
 
     setNewDailySharedExpense({
@@ -93,102 +98,106 @@ export default function ExpensesPage() {
       totalCost: '',
       startDate: tripState.startDate,
       endDate: tripState.endDate,
+      currency: 'USD',
     });
     setError('');
   };
 
   const handleAddDailyPersonalExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+    const dailyCost = parseFloat(newDailyPersonalExpense.dailyCost);
+    if (isNaN(dailyCost)) {
+      setError('Please enter a valid cost');
+      return;
+    }
+
     if (!newDailyPersonalExpense.name.trim() || !newDailyPersonalExpense.dailyCost) {
       setError('All fields are required');
       return;
     }
 
-    const cost = parseFloat(newDailyPersonalExpense.dailyCost);
-    if (isNaN(cost) || cost <= 0) {
-      setError('Cost must be a positive number');
-      return;
-    }
-
-    const newExpense: DailyPersonalExpense = {
+    const expense: DailyPersonalExpense = {
       id: crypto.randomUUID(),
       name: newDailyPersonalExpense.name.trim(),
-      dailyCost: cost,
+      dailyCost,
+      currency: newDailyPersonalExpense.currency,
     };
 
     setTripState({
       ...tripState,
-      dailyPersonalExpenses: [...tripState.dailyPersonalExpenses, newExpense]
+      dailyPersonalExpenses: [...tripState.dailyPersonalExpenses, expense]
     });
 
     setNewDailyPersonalExpense({
       name: '',
       dailyCost: '',
+      currency: 'USD',
     });
     setError('');
   };
 
   const handleAddOneTimeSharedExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+    const totalCost = parseFloat(newOneTimeSharedExpense.totalCost);
+    if (isNaN(totalCost)) {
+      setError('Please enter a valid cost');
+      return;
+    }
+
     if (!newOneTimeSharedExpense.name.trim() || !newOneTimeSharedExpense.totalCost) {
       setError('All fields are required');
       return;
     }
 
-    const cost = parseFloat(newOneTimeSharedExpense.totalCost);
-    if (isNaN(cost) || cost <= 0) {
-      setError('Cost must be a positive number');
-      return;
-    }
-
-    const newExpense: OneTimeSharedExpense = {
+    const expense: OneTimeSharedExpense = {
       id: crypto.randomUUID(),
       name: newOneTimeSharedExpense.name.trim(),
-      totalCost: cost,
+      totalCost,
+      currency: newOneTimeSharedExpense.currency,
     };
 
     setTripState({
       ...tripState,
-      oneTimeSharedExpenses: [...tripState.oneTimeSharedExpenses, newExpense]
+      oneTimeSharedExpenses: [...tripState.oneTimeSharedExpenses, expense]
     });
 
     setNewOneTimeSharedExpense({
       name: '',
       totalCost: '',
+      currency: 'USD',
     });
     setError('');
   };
 
   const handleAddOneTimePersonalExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+    const totalCost = parseFloat(newOneTimePersonalExpense.totalCost);
+    if (isNaN(totalCost)) {
+      setError('Please enter a valid cost');
+      return;
+    }
+
     if (!newOneTimePersonalExpense.name.trim() || !newOneTimePersonalExpense.totalCost) {
       setError('All fields are required');
       return;
     }
 
-    const cost = parseFloat(newOneTimePersonalExpense.totalCost);
-    if (isNaN(cost) || cost <= 0) {
-      setError('Cost must be a positive number');
-      return;
-    }
-
-    const newExpense: OneTimePersonalExpense = {
+    const expense: OneTimePersonalExpense = {
       id: crypto.randomUUID(),
       name: newOneTimePersonalExpense.name.trim(),
-      totalCost: cost,
+      totalCost,
+      currency: newOneTimePersonalExpense.currency,
     };
 
     setTripState({
       ...tripState,
-      oneTimePersonalExpenses: [...tripState.oneTimePersonalExpenses, newExpense]
+      oneTimePersonalExpenses: [...tripState.oneTimePersonalExpenses, expense]
     });
 
     setNewOneTimePersonalExpense({
       name: '',
       totalCost: '',
+      currency: 'USD',
     });
     setError('');
   };
@@ -262,6 +271,7 @@ export default function ExpensesPage() {
       totalCost: cost,
       startDate: newDailySharedExpense.startDate,
       endDate: newDailySharedExpense.endDate,
+      currency: newDailySharedExpense.currency,
     };
 
     setTripState({
@@ -276,6 +286,7 @@ export default function ExpensesPage() {
       totalCost: '',
       startDate: tripState.startDate,
       endDate: tripState.endDate,
+      currency: 'USD',
     });
     setExpenseToEdit(null);
     setError('');
@@ -301,6 +312,7 @@ export default function ExpensesPage() {
       id: expenseToEdit.id,
       name: newDailyPersonalExpense.name.trim(),
       dailyCost: cost,
+      currency: newDailyPersonalExpense.currency,
     };
 
     setTripState({
@@ -313,6 +325,7 @@ export default function ExpensesPage() {
     setNewDailyPersonalExpense({
       name: '',
       dailyCost: '',
+      currency: 'USD',
     });
     setExpenseToEdit(null);
     setError('');
@@ -338,6 +351,7 @@ export default function ExpensesPage() {
       id: expenseToEdit.id,
       name: newOneTimeSharedExpense.name.trim(),
       totalCost: cost,
+      currency: newOneTimeSharedExpense.currency,
     };
 
     setTripState({
@@ -350,6 +364,7 @@ export default function ExpensesPage() {
     setNewOneTimeSharedExpense({
       name: '',
       totalCost: '',
+      currency: 'USD',
     });
     setExpenseToEdit(null);
     setError('');
@@ -375,6 +390,7 @@ export default function ExpensesPage() {
       id: expenseToEdit.id,
       name: newOneTimePersonalExpense.name.trim(),
       totalCost: cost,
+      currency: newOneTimePersonalExpense.currency,
     };
 
     setTripState({
@@ -387,6 +403,7 @@ export default function ExpensesPage() {
     setNewOneTimePersonalExpense({
       name: '',
       totalCost: '',
+      currency: 'USD',
     });
     setExpenseToEdit(null);
     setError('');
@@ -404,6 +421,7 @@ export default function ExpensesPage() {
           totalCost: dailyShared.totalCost.toString(),
           startDate: dailyShared.startDate,
           endDate: dailyShared.endDate,
+          currency: dailyShared.currency,
         });
         break;
       case 'dailyPersonal':
@@ -411,6 +429,7 @@ export default function ExpensesPage() {
         setNewDailyPersonalExpense({
           name: dailyPersonal.name,
           dailyCost: dailyPersonal.dailyCost.toString(),
+          currency: dailyPersonal.currency,
         });
         break;
       case 'oneTimeShared':
@@ -418,6 +437,7 @@ export default function ExpensesPage() {
         setNewOneTimeSharedExpense({
           name: oneTimeShared.name,
           totalCost: oneTimeShared.totalCost.toString(),
+          currency: oneTimeShared.currency,
         });
         break;
       case 'oneTimePersonal':
@@ -425,6 +445,7 @@ export default function ExpensesPage() {
         setNewOneTimePersonalExpense({
           name: oneTimePersonal.name,
           totalCost: oneTimePersonal.totalCost.toString(),
+          currency: oneTimePersonal.currency,
         });
         break;
     }
@@ -439,20 +460,38 @@ export default function ExpensesPage() {
       totalCost: '',
       startDate: tripState.startDate,
       endDate: tripState.endDate,
+      currency: 'USD',
     });
     setNewDailyPersonalExpense({
       name: '',
       dailyCost: '',
+      currency: 'USD',
     });
     setNewOneTimeSharedExpense({
       name: '',
       totalCost: '',
+      currency: 'USD',
     });
     setNewOneTimePersonalExpense({
       name: '',
       totalCost: '',
+      currency: 'USD',
     });
   };
+
+  const CurrencySelect = ({ value, onChange, className }: { value: string, onChange: (value: string) => void, className?: string }) => (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={className}
+    >
+      {currencies.map(currency => (
+        <option key={currency.code} value={currency.code}>
+          {currency.code} - {currency.name}
+        </option>
+      ))}
+    </select>
+  );
 
   if (!isInitialized) {
     return (
@@ -562,7 +601,7 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="totalCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Total Cost ({tripState.baseCurrency})
+                    Total Cost ({newDailySharedExpense.currency})
                   </label>
                   <input
                     type="number"
@@ -584,7 +623,7 @@ export default function ExpensesPage() {
 
                 <div>
                   <label htmlFor="dailyCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Cost per Day ({tripState.baseCurrency})
+                    Cost per Day ({newDailySharedExpense.currency})
                   </label>
                   <input
                     type="number"
@@ -622,6 +661,14 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
+              <div className="flex gap-2">
+                <CurrencySelect
+                  value={newDailySharedExpense.currency}
+                  onChange={(value) => setNewDailySharedExpense({ ...newDailySharedExpense, currency: value })}
+                  className="block w-32 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
+                />
+              </div>
+
               <button
                 type="submit"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
@@ -653,7 +700,7 @@ export default function ExpensesPage() {
                         const end = new Date(expense.endDate);
                         const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
                         const dailyCost = expense.totalCost / days;
-                        return `${expense.totalCost} ${tripState.baseCurrency} total • ${dailyCost.toFixed(2)} ${tripState.baseCurrency} per day • ${days} days (${expense.startDate} to ${expense.endDate})`;
+                        return `${expense.totalCost} ${expense.currency} total • ${dailyCost.toFixed(2)} ${expense.currency} per day • ${days} days (${expense.startDate} to ${expense.endDate})`;
                       })()}
                     </p>
                   </div>
@@ -699,9 +746,9 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div>
+              <div className="flex gap-2">
                 <label htmlFor="dailyCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Daily Cost ({tripState.baseCurrency})
+                  Daily Cost ({newDailyPersonalExpense.currency})
                 </label>
                 <input
                   type="number"
@@ -712,6 +759,11 @@ export default function ExpensesPage() {
                   onChange={(e) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, dailyCost: e.target.value })}
                   placeholder="0.00"
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                />
+                <CurrencySelect
+                  value={newDailyPersonalExpense.currency}
+                  onChange={(value) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, currency: value })}
+                  className="block w-32 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
                 />
               </div>
 
@@ -741,7 +793,7 @@ export default function ExpensesPage() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {expense.dailyCost} {tripState.baseCurrency} per day
+                      {expense.dailyCost} {expense.currency} per day
                     </p>
                   </div>
                   <div className="flex gap-4">
@@ -786,9 +838,9 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div>
+              <div className="flex gap-2">
                 <label htmlFor="oneTimeTotalCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Total Cost ({tripState.baseCurrency})
+                  Total Cost ({newOneTimeSharedExpense.currency})
                 </label>
                 <input
                   type="number"
@@ -799,6 +851,11 @@ export default function ExpensesPage() {
                   onChange={(e) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, totalCost: e.target.value })}
                   placeholder="0.00"
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                />
+                <CurrencySelect
+                  value={newOneTimeSharedExpense.currency}
+                  onChange={(value) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, currency: value })}
+                  className="block w-32 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
                 />
               </div>
 
@@ -828,7 +885,7 @@ export default function ExpensesPage() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {expense.totalCost} {tripState.baseCurrency}
+                      {expense.totalCost} {expense.currency}
                     </p>
                   </div>
                   <div className="flex gap-4">
@@ -873,9 +930,9 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div>
+              <div className="flex gap-2">
                 <label htmlFor="oneTimePersonalTotalCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Total Cost ({tripState.baseCurrency})
+                  Total Cost ({newOneTimePersonalExpense.currency})
                 </label>
                 <input
                   type="number"
@@ -886,6 +943,11 @@ export default function ExpensesPage() {
                   onChange={(e) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, totalCost: e.target.value })}
                   placeholder="0.00"
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                />
+                <CurrencySelect
+                  value={newOneTimePersonalExpense.currency}
+                  onChange={(value) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, currency: value })}
+                  className="block w-32 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
                 />
               </div>
 
@@ -915,7 +977,7 @@ export default function ExpensesPage() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {expense.totalCost} {tripState.baseCurrency}
+                      {expense.totalCost} {expense.currency}
                     </p>
                   </div>
                   <div className="flex gap-4">

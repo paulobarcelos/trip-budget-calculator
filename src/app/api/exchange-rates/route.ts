@@ -26,6 +26,11 @@ export async function GET() {
           USD: 1.0,
           EUR: 0.92,
           GBP: 0.79,
+          JPY: 148.0,
+          AUD: 1.52,
+          CAD: 1.35,
+          CHF: 0.87,
+          CNY: 7.19,
           BRL: 5.0,
         },
       },
@@ -37,4 +42,4 @@ export async function GET() {
       }
     );
   }
-} 
+}
