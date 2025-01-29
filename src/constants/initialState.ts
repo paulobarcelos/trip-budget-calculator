@@ -14,4 +14,5 @@ export const initialTripState: TripState = {
   },
   startDate: '',
   endDate: '',
-}; 
+  displayCurrency: 'USD',
+};
