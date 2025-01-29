@@ -335,7 +335,7 @@ The application uses a selective localStorage-based state management system that
      oneTimePersonalExpenses: OneTimePersonalExpense[];
      days: Day[];
      usageCosts: UsageCosts;
-     baseCurrency: string;
+     displayCurrency: string;
      startDay: string;
      endDay: string;
    }
