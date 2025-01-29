@@ -66,9 +66,62 @@ export default function UsagePage() {
               </div>
             ) : (
               <div className="space-y-12">
-                {tripState.days.map((day) => (
+                {tripState.days.map((day, index) => (
                   <div key={day.date} className="border-t border-gray-200 dark:border-gray-700 pt-8">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-6">{day.date}</h3>
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{day.date}</h3>
+                      {index > 0 && (
+                        <button
+                          onClick={() => {
+                            const previousDay = tripState.days[index - 1];
+                            const previousDayExpenses = tripState.usageCosts.days[previousDay.id];
+                            if (!previousDayExpenses) return;
+
+                            setTripState(prev => {
+                              const newUsageCosts = {
+                                ...prev.usageCosts,
+                                days: {
+                                  ...prev.usageCosts.days,
+                                  [day.id]: {
+                                    ...prev.usageCosts.days[day.id] ?? {},
+                                    dailyShared: {
+                                      ...previousDayExpenses.dailyShared ?? {}
+                                    },
+                                    dailyPersonal: {
+                                      ...previousDayExpenses.dailyPersonal ?? {}
+                                    }
+                                  }
+                                }
+                              };
+
+                              // Filter out travelers that are not present on this day
+                              Object.entries(newUsageCosts.days[day.id].dailyShared ?? {}).forEach(([expenseId, travelerIds]) => {
+                                newUsageCosts.days[day.id].dailyShared[expenseId] = travelerIds.filter(travelerId => {
+                                  const traveler = tripState.travelers.find(t => t.id === travelerId);
+                                  return traveler && 
+                                    new Date(day.date) >= new Date(traveler.startDate) && 
+                                    new Date(day.date) <= new Date(traveler.endDate);
+                                });
+                              });
+
+                              Object.entries(newUsageCosts.days[day.id].dailyPersonal ?? {}).forEach(([expenseId, travelerIds]) => {
+                                newUsageCosts.days[day.id].dailyPersonal[expenseId] = travelerIds.filter(travelerId => {
+                                  const traveler = tripState.travelers.find(t => t.id === travelerId);
+                                  return traveler && 
+                                    new Date(day.date) >= new Date(traveler.startDate) && 
+                                    new Date(day.date) <= new Date(traveler.endDate);
+                                });
+                              });
+
+                              return { ...prev, usageCosts: newUsageCosts };
+                            });
+                          }}
+                          className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                        >
+                          Copy from previous day
+                        </button>
+                      )}
+                    </div>
                     
                     {/* Daily Shared Expenses */}
                     <div className="mb-8">

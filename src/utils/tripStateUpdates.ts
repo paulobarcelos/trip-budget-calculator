@@ -47,12 +47,28 @@ export function updateTripDates(tripState: TripState, newStartDate: string, newE
     const existingDay = tripState.days.find(day => day.id === newDay.id);
     return existingDay || newDay;
   });
+
+  // Update daily shared expenses to be within trip dates
+  const updatedDailySharedExpenses = tripState.dailySharedExpenses.map(expense => ({
+    ...expense,
+    startDate: new Date(expense.startDate) < new Date(newStartDate) ? newStartDate : expense.startDate,
+    endDate: new Date(expense.endDate) > new Date(newEndDate) ? newEndDate : expense.endDate,
+  }));
+
+  // Update travelers' dates to be within trip dates
+  const updatedTravelers = tripState.travelers.map(traveler => ({
+    ...traveler,
+    startDate: new Date(traveler.startDate) < new Date(newStartDate) ? newStartDate : traveler.startDate,
+    endDate: new Date(traveler.endDate) > new Date(newEndDate) ? newEndDate : traveler.endDate,
+  }));
   
   return {
     ...tripState,
     startDate: newStartDate,
     endDate: newEndDate,
     days: updatedDays,
+    travelers: updatedTravelers,
+    dailySharedExpenses: updatedDailySharedExpenses,
     usageCosts: {
       ...tripState.usageCosts,
       days: updatedDailyUsageCosts,
