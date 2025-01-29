@@ -46,6 +46,8 @@ export interface UsageCosts {
 }
 
 export interface TripState {
+  startDate: string;
+  endDate: string;
   travelers: Traveler[];
   dailySharedExpenses: DailySharedExpense[];
   dailyPersonalExpenses: DailyPersonalExpense[];
@@ -53,7 +55,5 @@ export interface TripState {
   oneTimePersonalExpenses: OneTimePersonalExpense[];
   days: Day[];
   usageCosts: UsageCosts;
-  startDate: string;
-  endDate: string;
-  baseCurrency: string;
-} 
+  displayCurrency: string;
+}

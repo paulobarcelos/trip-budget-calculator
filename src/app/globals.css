@@ -12,10 +12,13 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+  html.h-full {
+    color-scheme: dark;
+  }
 }
 
 body {
-  color: var(--foreground);
+  color: rgb(var(--foreground-rgb));
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }

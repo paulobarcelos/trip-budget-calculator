@@ -148,7 +148,7 @@ export default function UsagePage() {
                                       {(() => {
                                         const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate);
                                         const days = Math.ceil((new Date(expense.endDate).getTime() - new Date(expense.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                                        return `${dailyCost.toFixed(2)} ${tripState.baseCurrency} per day (${expense.totalCost} ${tripState.baseCurrency} total over ${days} days)`;
+                                        return `${dailyCost.toFixed(2)} ${expense.currency} per day (${expense.totalCost} ${expense.currency} total over ${days} days)`;
                                       })()}
                                     </p>
                                   </div>
@@ -294,7 +294,7 @@ export default function UsagePage() {
                                 <div>
                                   <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h5>
                                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {expense.dailyCost} {tripState.baseCurrency} per person per day
+                                    {expense.dailyCost} {expense.currency} per person per day
                                   </p>
                                 </div>
                                 <div className="flex space-x-2">
@@ -452,7 +452,7 @@ export default function UsagePage() {
                           <div>
                             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {expense.totalCost} {tripState.baseCurrency} total
+                              {expense.totalCost} {expense.currency} total
                             </p>
                           </div>
                           <div className="flex space-x-2">
@@ -556,7 +556,7 @@ export default function UsagePage() {
                           <div>
                             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {expense.totalCost} {tripState.baseCurrency} per person
+                              {expense.totalCost} {expense.currency} per person
                             </p>
                           </div>
                           <div className="flex space-x-2">

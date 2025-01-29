@@ -12,8 +12,8 @@ import { instructions } from './instructions';
 
 export default function BudgetPage() {
   const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
-  const [displayCurrency, setDisplayCurrency] = useLocalStorage<string>('displayCurrency', tripState.baseCurrency);
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
+  const [displayCurrency, setDisplayCurrency] = useLocalStorage<string>('displayCurrency', tripState.displayCurrency);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
