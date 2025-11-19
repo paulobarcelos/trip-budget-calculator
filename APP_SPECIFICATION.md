@@ -62,14 +62,14 @@ As a trip organizer, I want to set the trip's start and end dates
 - Changing dates regenerates the days array
 - Invalid date combinations show error message
 
-#### US2: Select Currency
-As a trip organizer, I want to select the base currency for all expenses
+#### US2: Choose Display Currency
+As a viewer, I want to choose the currency used for summaries without changing the raw expense inputs
 **Acceptance Criteria:**
-- Can select from predefined currency options
-- Selected base currency applies to all expense inputs and storage
-- Currency can be changed at any time
-- Changes reflect immediately in all calculations
-- Clear indication that this is the base currency for the trip
+- Can select from predefined currency options on the budget views
+- Preference is persisted within the trip data but can be temporarily overridden via `?currency=` in the URL
+- Converted amounts always show the "~" prefix and supporting copy clarifying they are approximations
+- Switching currencies updates all totals immediately without editing the underlying expenses
+- Currency controls remain available when opening shared snapshot links
 
 #### US3: Manage Travelers
 As a trip organizer, I want to add and manage travelers
@@ -143,22 +143,20 @@ As a trip organizer, I want to see a summary of all costs
 - Shows total cost per traveler
 - Breaks down into personal and shared costs
 - Shows grand total for trip
-- All amounts in base currency by default
-- Option to view in different display currencies
-- Converted amounts shown with "~" prefix
-- Currency conversion selector (when available)
-- Direct links to view in different currencies
-- Updates automatically when changes are made
+- Uses the viewer's selected display currency by default
+- Converted amounts show the "~" prefix with explanatory copy
+- Currency conversion selector (when rates are available)
+- Direct links preserve the chosen currency override
+- Updates automatically when data changes
 
 #### US11: View Budget Summary in Different Currencies
 As a trip organizer, I want to view the budget summary converted to different currencies
 **Acceptance Criteria:**
 - Can select from available display currencies in budget summary
 - Converted amounts are shown with "~" prefix to indicate approximation
-- Currency selection updates the URL
-- Can share URLs that show specific currency conversions
+- Currency selection updates the URL query so the view can be shared
 - Conversion rates are updated at least daily
-- Clear indication that amounts are converted from base currency
+- Clear indication that amounts are converted from their original expense currency
 
 #### US12: Handle Currency Conversion Issues
 As a trip organizer, I want graceful handling of currency conversion issues
@@ -192,6 +190,14 @@ As a trip organizer, I want my changes saved automatically
 - All changes save to localStorage
 - Data persists between page reloads
 - Loads last state when returning to app
+
+#### US16: Share Trip Snapshot via Link
+As a trip organizer, I want to share the current trip data through a single URL
+**Acceptance Criteria:**
+- Can generate a URL that encodes the full trip state (dates, travelers, expenses, usage, preferences)
+- Recipients opening the link see the shared snapshot immediately without importing files
+- Snapshot links respect `?currency=` overrides and still allow recipients to change their personal display currency afterward
+- Links are read-only by default; edits made by recipients do not modify the original sharer's data
 
 ## Business Rules
 
@@ -302,42 +308,34 @@ The application is built using:
 - Tailwind CSS for styling
 
 ### State Management
-All client-side state management is handled through:
-The application uses a selective localStorage-based state management system that:
+All client-side state lives inside a single `tripState` object stored in localStorage. The system provides:
 
-1. **Selective State Updates**
-   - Components can subscribe to specific paths in the state
-   - Only re-renders when the watched path changes
-   - Uses dot notation for path selection (e.g., 'travelers', 'expenses.shared')
+1. **Versioned Trip State**
+   - `tripState` includes a `version` flag, top-level dates, traveler/expense arrays, usage matrices, and viewer preferences (e.g., `displayCurrency`).
+   - Future migrations upgrade the blob before components consume it.
 
-2. **Client Components**
-   - Required for any component that needs to:
-     - Access localStorage
-     - Manage local state
-     - Handle user interactions
-     - Use browser APIs
-   - Marked with 'use client' directive
+2. **Client Components + Hooks**
+   - A custom `useLocalStorage` hook hydrates React state from localStorage, supports migrations, and syncs updates across tabs using a custom event.
+   - Selector helpers or context providers (e.g., `DisplayCurrencyProvider`) expose scoped slices so most components avoid re-reading the entire object.
 
-3. **Local Storage Integration**
-   - All state is persisted in localStorage
-   - Custom hook `useLocalStorageSelector` for reading specific paths
-   - Utility function `updateLocalStoragePath` for updating specific paths
-   - Automatic JSON parsing and stringifying
-   - Error handling for malformed data
+3. **Display Currency Context**
+   - The provider reads `tripState.displayCurrency`, merges it with optional `?currency=` overrides, and surfaces helpers (`setDisplayCurrency`, `isApproximate`) to every page.
+   - Overrides never mutate stored expenses; they only affect presentation.
 
-4. **State Structure**
+4. **State Structure (simplified)**
    ```typescript
    interface TripState {
+     version: number;
+     startDate: string;
+     endDate: string;
      travelers: Traveler[];
-     sharedExpenses: SharedExpense[];
-     personalExpenses: PersonalExpense[];
+     dailySharedExpenses: DailySharedExpense[];
+     dailyPersonalExpenses: DailyPersonalExpense[];
      oneTimeSharedExpenses: OneTimeSharedExpense[];
      oneTimePersonalExpenses: OneTimePersonalExpense[];
      days: Day[];
      usageCosts: UsageCosts;
      displayCurrency: string;
-     startDay: string;
-     endDay: string;
    }
    ```
 
@@ -361,27 +359,12 @@ app/
 │   ├── page.tsx         # Usage tracking
 │   └── error.tsx        # Usage error handling
 └── budget/
-    ├── page.tsx         # Budget summary (base currency)
-    ├── loading.tsx      # Budget loading UI
-    └── [currency]/
-        ├── page.tsx     # Budget summary (converted)
-        └── error.tsx    # Currency conversion errors
+    ├── page.tsx         # Budget summary with display currency selector
+    └── loading.tsx      # Budget loading UI
 ```
 
 ### Currency Conversion
-1. **Base Currency Page (`/budget`)**
-   - Displays amounts in trip's base currency
-   - Fetches available currencies from Open Exchange API
-   - Shows currency selector if API data is available
-   - Uses SWR for API data caching
-
-2. **Converted Currency Pages (`/budget/[currency]`)**
-   - Server-side fetches conversion rates
-   - Uses environment variables for API configuration:
-     ```env
-     OPEN_EXCHANGE_RATES_APP_ID=xxx
-     EXCHANGE_RATES_CACHE_SECONDS=86400  # 24 hours
-     ```
-   - Returns 404 for unavailable currencies
-   - Displays converted amounts with "~" prefix
-   - Uses Next.js caching with stale-while-revalidate 
+- `/budget` fetches hourly exchange rates through our `/api/exchange-rates` proxy (Open Exchange Rates backend) and renders totals in the active display currency.
+- The display currency selector is powered by `DisplayCurrencyProvider`; URL overrides (`?currency=`) temporarily change the view without mutating stored data.
+- Any converted amount shows a leading `~` plus contextual copy explaining it is approximate.
+- Since the full trip state is shareable, recipients opening a link see the provider respect both the encoded snapshot and any query overrides.
