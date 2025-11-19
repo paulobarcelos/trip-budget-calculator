@@ -67,7 +67,7 @@ As a viewer, I want to choose the currency used for summaries without changing t
 **Acceptance Criteria:**
 - Can select from predefined currency options on the budget views
 - Preference is persisted within the trip data but can be temporarily overridden via `?currency=` in the URL
-- Converted amounts always show the "~" prefix and supporting copy clarifying they are approximations
+- Converted amounts always show the "~" prefix to indicate approximation
 - Switching currencies updates all totals immediately without editing the underlying expenses
 - Currency controls remain available when opening shared snapshot links
 
@@ -144,7 +144,7 @@ As a trip organizer, I want to see a summary of all costs
 - Breaks down into personal and shared costs
 - Shows grand total for trip
 - Uses the viewer's selected display currency by default
-- Converted amounts show the "~" prefix with explanatory copy
+- Converted amounts show the "~" prefix
 - Currency conversion selector (when rates are available)
 - Direct links preserve the chosen currency override
 - Updates automatically when data changes
@@ -366,5 +366,5 @@ app/
 ### Currency Conversion
 - `/budget` fetches hourly exchange rates through our `/api/exchange-rates` proxy (Open Exchange Rates backend) and renders totals in the active display currency.
 - The display currency selector is powered by `DisplayCurrencyProvider`; URL overrides (`?currency=`) temporarily change the view without mutating stored data.
-- Any converted amount shows a leading `~` plus contextual copy explaining it is approximate.
+- Any converted amount shows a leading `~` to indicate approximation.
 - Since the full trip state is shareable, recipients opening a link see the provider respect both the encoded snapshot and any query overrides.

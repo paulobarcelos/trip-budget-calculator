@@ -48,9 +48,7 @@ export function Header() {
                 );
               })}
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-              <span className="font-semibold text-gray-700 dark:text-gray-200">~</span> indicates converted values
-            </span>
+            
           </div>
 
           {/* Mobile menu button */}
@@ -85,9 +83,7 @@ export function Header() {
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
-      <div className="md:hidden px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">
-        <span className="font-semibold text-gray-700 dark:text-gray-200">~</span> indicates converted values
-      </div>
+      <div className="md:hidden px-4 pb-2" />
     </header>
   );
 }
