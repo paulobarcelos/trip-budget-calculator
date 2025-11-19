@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
+import { DisplayCurrencyProvider } from "@/providers/DisplayCurrencyProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,14 +19,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className={`${inter.className} h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100`}>
-        <div className="min-h-full">
-          <Header />
-          <main className="py-10 px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-7xl">
-              {children}
-            </div>
-          </main>
-        </div>
+        <DisplayCurrencyProvider>
+          <div className="min-h-full">
+            <Header />
+            <main className="py-10 px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl">
+                {children}
+              </div>
+            </main>
+          </div>
+        </DisplayCurrencyProvider>
       </body>
     </html>
   );

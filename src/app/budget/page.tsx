@@ -8,12 +8,40 @@ import { formatCurrency } from '@/utils/currencyFormatting';
 import { convertCurrency } from '@/utils/currencyConversion';
 import { currencies } from '@/data/currencies';
 import { Instructions } from '@/components/Instructions';
+import { useDisplayCurrency } from '@/providers/DisplayCurrencyProvider';
 import { instructions } from './instructions';
+
+type CurrencyTotal = {
+  amount: number;
+  isApproximate: boolean;
+};
+
+const createCurrencyTotal = (): CurrencyTotal => ({ amount: 0, isApproximate: false });
+
+const sumCurrencyTotals = (a: CurrencyTotal, b: CurrencyTotal): CurrencyTotal => ({
+  amount: a.amount + b.amount,
+  isApproximate: a.isApproximate || b.isApproximate,
+});
+
+const aggregateTotals = (...totals: CurrencyTotal[]): CurrencyTotal =>
+  totals.reduce((acc, total) => sumCurrencyTotals(acc, total), createCurrencyTotal());
+
+type TravelerCostBreakdown = {
+  shared: { daily: CurrencyTotal; oneTime: CurrencyTotal };
+  personal: { daily: CurrencyTotal; oneTime: CurrencyTotal };
+  total: CurrencyTotal;
+};
+
+const createTravelerCostBreakdown = (): TravelerCostBreakdown => ({
+  shared: { daily: createCurrencyTotal(), oneTime: createCurrencyTotal() },
+  personal: { daily: createCurrencyTotal(), oneTime: createCurrencyTotal() },
+  total: createCurrencyTotal(),
+});
 
 export default function BudgetPage() {
   const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
+  const { displayCurrency, setDisplayCurrency, isApproximate } = useDisplayCurrency();
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
-  const [displayCurrency, setDisplayCurrency] = useLocalStorage<string>('displayCurrency', tripState.displayCurrency);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -46,47 +74,58 @@ export default function BudgetPage() {
     );
   }
 
-  const calculateTotalCost = (expenses: { totalCost: number; currency: string }[]) => {
-    return expenses.reduce((total, expense) => {
-      const convertedCost = convertCurrency(expense.totalCost, expense.currency, displayCurrency, exchangeRates!);
-      return total + convertedCost;
-    }, 0);
-  };
+  const convertAmount = (amount: number, sourceCurrency: string): CurrencyTotal => ({
+    amount: convertCurrency(amount, sourceCurrency, displayCurrency, exchangeRates!),
+    isApproximate: isApproximate(sourceCurrency),
+  });
 
-  const calculateDailyCost = (totalCost: number, startDate: string, endDate: string, currency: string): number => {
+  const calculateTotalCost = (expenses: { totalCost: number; currency: string }[]): CurrencyTotal =>
+    expenses.reduce<CurrencyTotal>(
+      (total, expense) => sumCurrencyTotals(total, convertAmount(expense.totalCost, expense.currency)),
+      createCurrencyTotal()
+    );
+
+  const calculateDailyCost = (
+    totalCost: number,
+    startDate: string,
+    endDate: string,
+    currency: string
+  ): CurrencyTotal => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const dailyCost = totalCost / days;
-    return convertCurrency(dailyCost, currency, displayCurrency, exchangeRates!);
+    const safeDays = days > 0 ? days : 1;
+    const dailyCost = totalCost / safeDays;
+    return convertAmount(dailyCost, currency);
   };
 
-  const calculateDailyExpensesTotal = (expenses: DailyPersonalExpense[]) => {
-    return expenses.reduce((total, expense) => {
-      const convertedCost = convertCurrency(expense.dailyCost, expense.currency, displayCurrency, exchangeRates!);
-      return total + convertedCost;
-    }, 0);
+  const calculateDailyExpensesTotal = (expenses: DailyPersonalExpense[]): CurrencyTotal =>
+    expenses.reduce<CurrencyTotal>(
+      (total, expense) => sumCurrencyTotals(total, convertAmount(expense.dailyCost, expense.currency)),
+      createCurrencyTotal()
+    );
+
+  const addAmountWithFlag = (target: CurrencyTotal, amount: number, isApproximation: boolean) => {
+    target.amount += amount;
+    target.isApproximate = target.isApproximate || isApproximation;
   };
 
   const oneTimeSharedTotal = calculateTotalCost(tripState.oneTimeSharedExpenses);
   const oneTimePersonalTotal = calculateTotalCost(tripState.oneTimePersonalExpenses);
-  const dailySharedTotal = tripState.dailySharedExpenses.reduce((total, expense) => {
-    return total + calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate, expense.currency);
-  }, 0);
+  const dailySharedTotal = tripState.dailySharedExpenses.reduce<CurrencyTotal>(
+    (total, expense) => sumCurrencyTotals(total, calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate, expense.currency)),
+    createCurrencyTotal()
+  );
   const dailyPersonalTotal = calculateDailyExpensesTotal(tripState.dailyPersonalExpenses);
 
-  const totalDailyCost = dailySharedTotal + dailyPersonalTotal;
-  const totalOneTimeCost = oneTimeSharedTotal + oneTimePersonalTotal;
-  const totalCost = totalDailyCost + totalOneTimeCost;
+  const totalDailyCost = sumCurrencyTotals(dailySharedTotal, dailyPersonalTotal);
+  const totalOneTimeCost = sumCurrencyTotals(oneTimeSharedTotal, oneTimePersonalTotal);
+  const totalCost = aggregateTotals(totalDailyCost, totalOneTimeCost);
 
-  const travelerCosts = new Map<string, { shared: { daily: number; oneTime: number }; personal: { daily: number; oneTime: number }; total: number }>();
+  const travelerCosts = new Map<string, TravelerCostBreakdown>();
 
   tripState.travelers.forEach(traveler => {
-    travelerCosts.set(traveler.id, {
-      shared: { daily: 0, oneTime: 0 },
-      personal: { daily: 0, oneTime: 0 },
-      total: 0
-    });
+    travelerCosts.set(traveler.id, createTravelerCostBreakdown());
   });
 
   Object.entries(tripState.usageCosts.days).forEach(([, dailyExpenses]) => {
@@ -95,14 +134,14 @@ export default function BudgetPage() {
       if (!expense || travelerIds.length === 0) return;
 
       const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate, expense.currency);
-      const costPerPerson = dailyCost / travelerIds.length;
+      const costPerPerson = dailyCost.amount / travelerIds.length;
 
       travelerIds.forEach(travelerId => {
         const costs = travelerCosts.get(travelerId);
-        if (costs) {
-          costs.shared.daily += costPerPerson;
-          costs.total += costPerPerson;
-        }
+        if (!costs) return;
+
+        addAmountWithFlag(costs.shared.daily, costPerPerson, dailyCost.isApproximate);
+        addAmountWithFlag(costs.total, costPerPerson, dailyCost.isApproximate);
       });
     });
 
@@ -110,14 +149,14 @@ export default function BudgetPage() {
       const expense = tripState.dailyPersonalExpenses.find(e => e.id === expenseId);
       if (!expense || travelerIds.length === 0) return;
 
-      const dailyCost = calculateDailyExpensesTotal([expense]);
+      const dailyCost = convertAmount(expense.dailyCost, expense.currency);
 
       travelerIds.forEach(travelerId => {
         const costs = travelerCosts.get(travelerId);
-        if (costs) {
-          costs.personal.daily += dailyCost;
-          costs.total += dailyCost;
-        }
+        if (!costs) return;
+
+        addAmountWithFlag(costs.personal.daily, dailyCost.amount, dailyCost.isApproximate);
+        addAmountWithFlag(costs.total, dailyCost.amount, dailyCost.isApproximate);
       });
     });
   });
@@ -126,14 +165,15 @@ export default function BudgetPage() {
     const expense = tripState.oneTimeSharedExpenses.find(e => e.id === expenseId);
     if (!expense || travelerIds.length === 0) return;
 
-    const costPerPerson = calculateTotalCost([expense]) / travelerIds.length;
+    const convertedCost = convertAmount(expense.totalCost, expense.currency);
+    const costPerPerson = convertedCost.amount / travelerIds.length;
 
     travelerIds.forEach(travelerId => {
       const costs = travelerCosts.get(travelerId);
-      if (costs) {
-        costs.shared.oneTime += costPerPerson;
-        costs.total += costPerPerson;
-      }
+      if (!costs) return;
+
+      addAmountWithFlag(costs.shared.oneTime, costPerPerson, convertedCost.isApproximate);
+      addAmountWithFlag(costs.total, costPerPerson, convertedCost.isApproximate);
     });
   });
 
@@ -141,21 +181,24 @@ export default function BudgetPage() {
     const expense = tripState.oneTimePersonalExpenses.find(e => e.id === expenseId);
     if (!expense) return;
 
-    const totalCost = calculateTotalCost([expense]);
+    const totalCost = convertAmount(expense.totalCost, expense.currency);
 
     travelerIds.forEach(travelerId => {
       const costs = travelerCosts.get(travelerId);
-      if (costs) {
-        costs.personal.oneTime += totalCost;
-        costs.total += totalCost;
-      }
+      if (!costs) return;
+
+      addAmountWithFlag(costs.personal.oneTime, totalCost.amount, totalCost.isApproximate);
+      addAmountWithFlag(costs.total, totalCost.amount, totalCost.isApproximate);
     });
   });
 
-  const grandTotal = Array.from(travelerCosts.values()).reduce((sum, costs) => sum + costs.total, 0);
+  const grandTotal = Array.from(travelerCosts.values()).reduce<CurrencyTotal>(
+    (acc, costs) => sumCurrencyTotals(acc, costs.total),
+    createCurrencyTotal()
+  );
 
-  function formatAmount(amount: number): string {
-    return formatCurrency(amount, displayCurrency);
+  function formatAmount(total: CurrencyTotal): string {
+    return formatCurrency(total.amount, displayCurrency, total.isApproximate);
   }
 
   return (

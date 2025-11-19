@@ -1,6 +1,7 @@
 import { TripState, DailyExpenses } from '@/types';
 
 export const initialTripState: TripState = {
+  version: 1,
   travelers: [],
   dailySharedExpenses: [],
   dailyPersonalExpenses: [],

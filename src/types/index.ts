@@ -46,6 +46,7 @@ export interface UsageCosts {
 }
 
 export interface TripState {
+  version: number;
   startDate: string;
   endDate: string;
   travelers: Traveler[];

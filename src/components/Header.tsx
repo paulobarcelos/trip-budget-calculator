@@ -29,23 +29,28 @@ export function Header() {
           </div>
 
           {/* Desktop navigation */}
-          <div className="hidden md:flex md:items-center md:space-x-6">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`${
-                    isActive
-                      ? 'text-primary-600 dark:text-primary-400'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  } text-sm font-medium`}
-                >
-                  {item.name}
-                </Link>
-              );
-            })}
+          <div className="hidden md:flex md:items-center md:gap-6">
+            <div className="flex items-center space-x-6">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`${
+                      isActive
+                        ? 'text-primary-600 dark:text-primary-400'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    } text-sm font-medium`}
+                  >
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+              <span className="font-semibold text-gray-700 dark:text-gray-200">~</span> indicates converted values
+            </span>
           </div>
 
           {/* Mobile menu button */}
@@ -80,6 +85,9 @@ export function Header() {
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
+      <div className="md:hidden px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">
+        <span className="font-semibold text-gray-700 dark:text-gray-200">~</span> indicates converted values
+      </div>
     </header>
   );
-} 
+}
