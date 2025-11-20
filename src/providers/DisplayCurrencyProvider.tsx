@@ -1,7 +1,6 @@
 'use client';
 
-import { PropsWithChildren, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { PropsWithChildren, createContext, useCallback, useContext, useMemo } from 'react';
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
@@ -29,16 +28,8 @@ function normalizeCurrency(code: string | null | undefined): string | null {
 
 export function DisplayCurrencyProvider({ children }: PropsWithChildren) {
   const [tripState, setTripState] = useLocalStorage<TripState>('tripState', initialTripState);
-  const searchParams = useSearchParams();
-  const queryCurrency = normalizeCurrency(searchParams?.get('currency'));
-  const [manualCurrency, setManualCurrency] = useState<string | null>(null);
 
-  useEffect(() => {
-    setManualCurrency(null);
-  }, [queryCurrency]);
-
-  const persistedCurrency = normalizeCurrency(tripState.displayCurrency) ?? initialTripState.displayCurrency;
-  const effectiveCurrency = manualCurrency ?? queryCurrency ?? persistedCurrency;
+  const effectiveCurrency = normalizeCurrency(tripState.displayCurrency) ?? initialTripState.displayCurrency;
 
   const setDisplayCurrency = useCallback(
     (nextCurrency: string) => {
@@ -47,7 +38,6 @@ export function DisplayCurrencyProvider({ children }: PropsWithChildren) {
         ...prev,
         displayCurrency: normalized,
       }));
-      setManualCurrency(normalized);
     },
     [setTripState]
   );
