@@ -79,13 +79,14 @@ export function useLocalStorage<T>(key: string, initialValue: T, options?: UseLo
     try {
       // Allow value to be a function so we have same API as useState
       const valueToStore = value instanceof Function ? value(storedValue) : value;
-      
-      setStoredValue(valueToStore);
+      const migratedValue = migrate ? migrate(valueToStore) : valueToStore;
+
+      setStoredValue(migratedValue);
       
       if (typeof window !== 'undefined') {
-        const serializedValue = JSON.stringify(valueToStore);
+        const serializedValue = JSON.stringify(migratedValue);
         window.localStorage.setItem(key, serializedValue);
-        const customEvent: LocalStorageEventDetail<T> = { key, value: valueToStore };
+        const customEvent: LocalStorageEventDetail<T> = { key, value: migratedValue };
         // Defer the broadcast to avoid React warning about updating a component
         // while another component is rendering.
         const dispatch = () => window.dispatchEvent(new CustomEvent(LOCAL_STORAGE_EVENT_NAME, { detail: customEvent }));

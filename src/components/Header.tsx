@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MobileNav } from './MobileNav';
+import { DataTransferControls } from './DataTransferControls';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,7 +49,9 @@ export function Header() {
                 );
               })}
             </div>
-            
+            <div className="pl-6 border-l border-gray-200 dark:border-gray-700">
+              <DataTransferControls />
+            </div>
           </div>
 
           {/* Mobile menu button */}
@@ -83,7 +86,9 @@ export function Header() {
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
-      <div className="md:hidden px-4 pb-2" />
+      <div className="md:hidden px-4 pb-3">
+        <DataTransferControls />
+      </div>
     </header>
   );
 }

@@ -4,6 +4,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState, DailyPersonalExpense } from '@/types';
 import { useState, useEffect } from 'react';
 import { initialTripState } from '@/constants/initialState';
+import { migrateState } from '@/utils/stateMigrations';
 import { formatCurrency } from '@/utils/currencyFormatting';
 import { convertCurrency } from '@/utils/currencyConversion';
 import { currencies } from '@/data/currencies';
@@ -40,7 +41,9 @@ const createTravelerCostBreakdown = (): TravelerCostBreakdown => ({
 });
 
 export default function BudgetPage() {
-  const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
+  const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
+    migrate: migrateState,
+  });
   const { displayCurrency, setDisplayCurrency, isApproximate } = useDisplayCurrency();
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
   const [isLoading, setIsLoading] = useState(true);

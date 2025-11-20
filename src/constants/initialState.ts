@@ -1,7 +1,7 @@
-import { TripState, DailyExpenses } from '@/types';
+import { TripState, DailyExpenses, TripStateVersion } from '@/types';
 
 export const initialTripState: TripState = {
-  version: 1,
+  version: TripStateVersion,
   travelers: [],
   dailySharedExpenses: [],
   dailyPersonalExpenses: [],

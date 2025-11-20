@@ -9,10 +9,13 @@ import { updateTripDates } from '@/utils/tripStateUpdates';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
 import { shiftDate } from '@/utils/dateMath';
+import { migrateState } from '@/utils/stateMigrations';
 
 export default function SetupPage() {
   const router = useRouter();
-  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
+  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
+    migrate: migrateState,
+  });
   const [formState, setFormState] = useState(() => ({
     startDate: initialTripState.startDate,
     endDate: initialTripState.endDate,

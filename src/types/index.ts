@@ -46,7 +46,7 @@ export interface UsageCosts {
 }
 
 export interface TripState {
-  version: number;
+  version: TripStateVersion;
   startDate: string;
   endDate: string;
   travelers: Traveler[];
@@ -58,3 +58,6 @@ export interface TripState {
   usageCosts: UsageCosts;
   displayCurrency: string;
 }
+
+export const TripStateVersion = 1 as const;
+export type TripStateVersion = typeof TripStateVersion;
