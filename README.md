@@ -26,7 +26,7 @@ Open http://localhost:3000 and step through:
 - `docs/plans/` – implementation plans and design notes
 
 ## Tech Stack
-Next.js 15 (App Router), React 19, TypeScript, Tailwind, Headless UI.
+Next.js 16 (App Router), React 19, TypeScript, Tailwind, Headless UI.
 
 ## State & Currency
 Trip data lives in `tripState` in localStorage (versioned). Display currency preference is stored alongside trip data and can be overridden via `?currency=`.
