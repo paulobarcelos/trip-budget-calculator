@@ -1,7 +1,5 @@
 # Foundational Upgrades Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Stabilize trip state handling by fixing currency display behavior, date math, usage cleanup, sorting, and adding import/export plus shareable links.
 
 **Architecture:** Keep the existing localStorage-backed `TripState`, but extend it with `version` metadata, persisted `displayCurrency`, and helper utilities for encoding/decoding state. Touch only the relevant client components and utilities so we can later migrate to a richer store without regressions.
@@ -22,11 +20,11 @@
 **Steps:**
 1. Update `TripState` and `initialTripState` to include `displayCurrency` + `version: 1`.
 2. Extend `useLocalStorage` to accept an optional migration function that can upgrade older records (noop for now).
-3. Build `DisplayCurrencyProvider` (client) that reads `displayCurrency` from trip state, watches `?currency=` query param, and exposes `displayCurrency` + setter + `isApproximate(fromCurrency)` helper via React context.
+3. Build `DisplayCurrencyProvider` (client) that reads `displayCurrency` from trip state and exposes `displayCurrency` + setter + `isApproximate(fromCurrency)` helper via React context.
 4. Wrap `children` with this provider inside `layout.tsx`.
-5. Refactor `src/app/budget/page.tsx` to consume the provider instead of calling `useLocalStorage` for `displayCurrency`. When the query param differs, override but keep persistence when the user explicitly picks from the select.
+5. Refactor `src/app/budget/page.tsx` to consume the provider instead of calling `useLocalStorage` for `displayCurrency`, ensuring manual selections persist back into trip state.
 6. Ensure `formatCurrency` calls receive `isApproximation=true` whenever `expense.currency !== displayCurrency` (update call sites in budget/usage summaries).
-7. Manually verify by running `npm run dev`, entering mixed-currency expenses, appending `?currency=EUR` to `/budget`, and ensuring values show `~` and the picker reflects the override.
+7. Manually verify by running `npm run dev`, entering mixed-currency expenses, switching the currency via the select, refreshing, and confirming the selection persists and approximate indicators render correctly.
 
 ### Task 2: Fix Exclusive Date Math & Per-Day Calculations
 
@@ -45,8 +43,7 @@
 3. Update expense forms to validate that `endDate` is strictly greater than `startDate`, and fix the per-day preview to use the new helper so entering daily price keeps totals correct.
 4. Adjust usage rendering filters to rely on the exclusive range (traveler active when `date >= startDate && date < endDate`).
 5. Update budget calculations (`calculateDailyCost`) to divide by the exclusive day count.
-6. Add tests in `src/utils/__tests__/tripStateUpdates.test.ts` covering `getDayCount`, `generateDaysForDateRange`, and traveler clamping; run with `npx vitest` or similar (if no harness, use `ts-node` + assertions) to ensure date math is correct.
-7. Manual QA: create a trip from 2025-01-01 to 2025-01-05, add a shared expense for £100 total, confirm the UI shows 4 days and £25/day, and ensure marking usage on the last day is impossible.
+6. Manual QA: create a trip from 2025-01-01 to 2025-01-05, add a shared expense for £100 total, confirm the UI shows 4 days and £25/day, and ensure marking usage on the last day is impossible.
 
 ### Task 3: Clean Up Usage When Editing Expenses
 
@@ -114,8 +111,6 @@
 
 **Steps:**
 1. Run `npm run lint` to ensure new code passes ESLint.
-2. Run unit tests (e.g., `npx vitest run` or `npx jest`) for the new utility test suites.
-3. Manual smoke test through the full flow: setup dates, add travelers, add multi-currency expenses, assign usage, view budget with query-param currency, delete expenses, export/import JSON, and open shareable link.
-4. Capture any new environment variables/dependencies (`pako`) in `README.md` and outline how to use the data transfer features.
-5. Prepare a summary for the PR describing key fixes and QA steps.
-
+2. Manual smoke test through the full flow: setup dates, add travelers, add multi-currency expenses, assign usage, view budget, delete expenses, export/import JSON, and open shareable link.
+3. Capture any new environment variables/dependencies (`pako`) in `README.md` and outline how to use the data transfer features.
+4. Prepare a summary for the PR describing key fixes and QA steps.

@@ -66,7 +66,7 @@ As a trip organizer, I want to set the trip's start and end dates
 As a viewer, I want to choose the currency used for summaries without changing the raw expense inputs
 **Acceptance Criteria:**
 - Can select from predefined currency options on the budget views
-- Preference is persisted within the trip data but can be temporarily overridden via `?currency=` in the URL
+- Preference is persisted within the trip data and reloads automatically when revisiting or sharing the trip
 - Converted amounts always show the "~" prefix to indicate approximation
 - Switching currencies updates all totals immediately without editing the underlying expenses
 - Currency controls remain available when opening shared snapshot links
@@ -196,7 +196,7 @@ As a trip organizer, I want to share the current trip data through a single URL
 **Acceptance Criteria:**
 - Can generate a URL that encodes the full trip state (dates, travelers, expenses, usage, preferences)
 - Recipients opening the link see the shared snapshot immediately without importing files
-- Snapshot links respect `?currency=` overrides and still allow recipients to change their personal display currency afterward
+- Snapshot links include the saved display currency but recipients can still change their personal display currency afterward
 - Links are read-only by default; edits made by recipients do not modify the original sharer's data
 
 ## Business Rules
@@ -234,7 +234,7 @@ As a trip organizer, I want to share the current trip data through a single URL
 
 ### Navigation Structure
 Five main sections:
-1. Dates & Currency
+1. Setup
 2. Travelers
 3. Expenses
 4. Usage
@@ -242,11 +242,9 @@ Five main sections:
 
 ### Screen Details
 
-#### Dates & Currency Screen
+#### Setup Screen
 - Set trip start/end dates
-- Select base currency for all expenses
 - Changes affect entire trip calculation
-- Clear indication this currency will be used for all expense inputs
 
 #### Travelers Screen
 - Add/edit/remove travelers
@@ -282,20 +280,18 @@ Two main sections:
 - Option to view in different display currencies
 - Converted amounts shown with "~" prefix
 - Currency conversion selector (when available)
-- Direct links to view in different currencies
 
 ## Assumptions & Constraints
-1. Single currency per trip
-2. No time-of-day tracking (only full days)
-3. No category management (free-form expense names)
-4. No receipt tracking
-5. No multi-trip management
-6. No user accounts/authentication
-7. No offline functionality requirements
-8. No multi-language support
-9. No mobile-specific features
-10. No payment tracking
-11. No real-time collaboration
+1. No time-of-day tracking (only full days)
+2. No category management (free-form expense names)
+3. No receipt tracking
+4. No multi-trip management
+5. No user accounts/authentication
+6. No offline functionality requirements
+7. No multi-language support
+8. No mobile-specific features
+9.  No payment tracking
+10. No real-time collaboration
 
 ## Technical Implementation
 
@@ -319,8 +315,8 @@ All client-side state lives inside a single `tripState` object stored in localSt
    - Selector helpers or context providers (e.g., `DisplayCurrencyProvider`) expose scoped slices so most components avoid re-reading the entire object.
 
 3. **Display Currency Context**
-   - The provider reads `tripState.displayCurrency`, merges it with optional `?currency=` overrides, and surfaces helpers (`setDisplayCurrency`, `isApproximate`) to every page.
-   - Overrides never mutate stored expenses; they only affect presentation.
+   - The provider reads `tripState.displayCurrency` and surfaces helpers (`setDisplayCurrency`, `isApproximate`) to every page.
+   - Updating the selector persists immediately so future sessions and shared snapshots reflect the viewer’s choice.
 
 4. **State Structure (simplified)**
    ```typescript
@@ -365,6 +361,6 @@ app/
 
 ### Currency Conversion
 - `/budget` fetches hourly exchange rates through our `/api/exchange-rates` proxy (Open Exchange Rates backend) and renders totals in the active display currency.
-- The display currency selector is powered by `DisplayCurrencyProvider`; URL overrides (`?currency=`) temporarily change the view without mutating stored data.
+- The display currency selector is powered by `DisplayCurrencyProvider`; it writes the viewer’s preference directly into `tripState`.
 - Any converted amount shows a leading `~` to indicate approximation.
-- Since the full trip state is shareable, recipients opening a link see the provider respect both the encoded snapshot and any query overrides.
+- Since the full trip state is shareable, recipients opening a link see the provider respect the encoded snapshot but can still change their own preference afterward.
