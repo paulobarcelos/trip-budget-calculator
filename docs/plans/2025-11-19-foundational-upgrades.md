@@ -1,5 +1,7 @@
 # Foundational Upgrades Implementation Plan
 
+_Completed on 2025-11-20 (Tasks 1–6 implemented; Task 7 covered by regression checks as needed)_
+
 **Goal:** Stabilize trip state handling by fixing currency display behavior, date math, usage cleanup, sorting, and adding import/export plus shareable links.
 
 **Architecture:** Keep the existing localStorage-backed `TripState`, but extend it with `version` metadata, persisted `displayCurrency`, and helper utilities for encoding/decoding state. Touch only the relevant client components and utilities so we can later migrate to a richer store without regressions.

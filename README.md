@@ -7,7 +7,7 @@ Model a trip budget before you book. Add dates, travelers, and rough costs, then
 - Supports mixed traveler dates and four expense types (daily/one-time, shared/personal)
 - Exclusive end-date logic (leaving on the 5th means you don’t pay for the 5th)
 - Display currency selection with `~` prefix for converted amounts
-- LocalStorage persistence plus planned JSON export/import and shareable snapshot links
+- LocalStorage persistence plus JSON export/import and shareable snapshot links (Header ➜ Data Transfer)
 
 ## Getting Started
 ```bash
@@ -28,10 +28,13 @@ Open http://localhost:3000 and step through:
 ## Tech Stack
 Next.js 16 (App Router), React 19, TypeScript, Tailwind, Headless UI.
 
-## State & Currency
-Trip data lives in `tripState` in localStorage (versioned). Display currency preference is stored alongside trip data and can be overridden via `?currency=`.
+## State, Sharing & Currency
+- Trip data lives in `tripState` in localStorage (versioned and migrated on load).
+- Export/Import: use the Header “Data Transfer” controls to download or re-import a `trip-budget-YYYYMMDD.json` snapshot (validation is structural).
+- Shareable links: copy a URL with `?data=t=...` payload (hash also supported on ingest). Opening the link hydrates trip state once and strips the param.
+- Display currency preference is stored in trip data and can still be overridden via `?currency=`.
 
 ## Development Notes
 - Lint: `npm run lint`
-- Tests: none yet; date-math helpers are covered in upcoming tasks
+- Tests: currently manual + lint; date-math/unit coverage planned
 - Exclusive date math: end dates are treated as exclusive across days, usage, and pricing
