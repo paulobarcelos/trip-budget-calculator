@@ -14,6 +14,7 @@ import { instructions } from './instructions';
 import { getDayCount, calculateDailyCost, removeExpense } from '@/utils/tripStateUpdates';
 import { shiftDate } from '@/utils/dateMath';
 import { migrateState } from '@/utils/stateMigrations';
+import { decodeState } from '@/utils/stateEncoding';
 
 type CurrencySelectProps = {
   value: string;
@@ -41,6 +42,7 @@ export default function ExpensesPage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
     migrate: migrateState,
+    decodeFromUrl: decodeState,
   });
   const [error, setError] = useState('');
   const [expenseToDelete, setExpenseToDelete] = useState<{

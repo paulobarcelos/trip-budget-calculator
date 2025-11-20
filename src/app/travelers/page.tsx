@@ -11,6 +11,7 @@ import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
 import { shiftDate } from '@/utils/dateMath';
 import { migrateState } from '@/utils/stateMigrations';
+import { decodeState } from '@/utils/stateEncoding';
 
 interface TravelerToDelete {
   id: string;
@@ -21,6 +22,7 @@ export default function TravelersPage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
     migrate: migrateState,
+    decodeFromUrl: decodeState,
   });
   const [travelerToDelete, setTravelerToDelete] = useState<TravelerToDelete | null>(null);
   const [error, setError] = useState<string | null>(null);

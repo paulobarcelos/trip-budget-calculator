@@ -10,11 +10,13 @@ import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
 import { shiftDate } from '@/utils/dateMath';
 import { migrateState } from '@/utils/stateMigrations';
+import { decodeState } from '@/utils/stateEncoding';
 
 export default function SetupPage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
     migrate: migrateState,
+    decodeFromUrl: decodeState,
   });
   const [formState, setFormState] = useState(() => ({
     startDate: initialTripState.startDate,

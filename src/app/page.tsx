@@ -35,6 +35,7 @@ export default function Home() {
         <li>Model shared/personal expenses, daily or one-time</li>
         <li>Instant per-day and per-person totals with toggles</li>
         <li>Sharable snapshots and currency display selection</li>
+        <li>Export/Import JSON or copy a shareable link from the header at any time</li>
       </ul>
     </div>
   );

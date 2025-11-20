@@ -10,11 +10,13 @@ import { calculateDailyCost, getDayCount } from '@/utils/tripStateUpdates';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
 import { migrateState } from '@/utils/stateMigrations';
+import { decodeState } from '@/utils/stateEncoding';
 
 export default function UsagePage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
     migrate: migrateState,
+    decodeFromUrl: decodeState,
   });
   const isDateWithinRange = (date: string, start: string, end: string) =>
     Boolean(date && start && end) && date >= start && date < end;

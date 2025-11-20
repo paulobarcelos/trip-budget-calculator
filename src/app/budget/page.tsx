@@ -12,6 +12,7 @@ import { Instructions } from '@/components/Instructions';
 import { useDisplayCurrency } from '@/providers/DisplayCurrencyProvider';
 import { instructions } from './instructions';
 import { getDayCount } from '@/utils/tripStateUpdates';
+import { decodeState } from '@/utils/stateEncoding';
 
 type CurrencyTotal = {
   amount: number;
@@ -43,6 +44,7 @@ const createTravelerCostBreakdown = (): TravelerCostBreakdown => ({
 export default function BudgetPage() {
   const [tripState, , isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
     migrate: migrateState,
+    decodeFromUrl: decodeState,
   });
   const { displayCurrency, setDisplayCurrency, isApproximate } = useDisplayCurrency();
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);

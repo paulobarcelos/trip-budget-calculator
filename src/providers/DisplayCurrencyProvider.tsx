@@ -7,6 +7,7 @@ import { TripState } from '@/types';
 import { initialTripState } from '@/constants/initialState';
 import { currencies } from '@/data/currencies';
 import { migrateState } from '@/utils/stateMigrations';
+import { decodeState } from '@/utils/stateEncoding';
 
 interface DisplayCurrencyContextValue {
   displayCurrency: string;
@@ -30,6 +31,7 @@ function normalizeCurrency(code: string | null | undefined): string | null {
 export function DisplayCurrencyProvider({ children }: PropsWithChildren) {
   const [tripState, setTripState] = useLocalStorage<TripState>('tripState', initialTripState, {
     migrate: migrateState,
+    decodeFromUrl: decodeState,
   });
 
   const effectiveCurrency = normalizeCurrency(tripState.displayCurrency) ?? initialTripState.displayCurrency;

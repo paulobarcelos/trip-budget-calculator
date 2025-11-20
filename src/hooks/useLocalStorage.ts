@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 
 type LocalStorageMigration<T> = (value: unknown) => T;
+type UrlDecoder<T> = (payload: string) => T;
 
 interface UseLocalStorageOptions<T> {
   migrate?: LocalStorageMigration<T>;
+  decodeFromUrl?: UrlDecoder<T>;
 }
 
 interface LocalStorageEventDetail<T> {
@@ -20,10 +22,44 @@ export function useLocalStorage<T>(key: string, initialValue: T, options?: UseLo
   const [storedValue, setStoredValue] = useState<T>(initialValue);
   const [isInitialized, setIsInitialized] = useState(false);
   const migrate = options?.migrate;
+  const decodeFromUrl = options?.decodeFromUrl;
 
   useEffect(() => {
+    const hydrateFromUrl = (): T | null => {
+      if (!decodeFromUrl || typeof window === 'undefined') return null;
+
+      try {
+        const url = new URL(window.location.href);
+        const hashValue = url.hash.startsWith('#data=') ? url.hash.slice(6) : url.hash.startsWith('#t=') ? url.hash.slice(1) : null;
+        const queryValue = url.searchParams.get('data');
+        const payload = hashValue ?? queryValue;
+        if (!payload) return null;
+
+        const decoded = decodeFromUrl(payload);
+        const migrated = migrate ? migrate(decoded) : decoded;
+        const serializedValue = JSON.stringify(migrated);
+        window.localStorage.setItem(key, serializedValue);
+
+        url.searchParams.delete('data');
+        if (url.hash.startsWith('#data=') || url.hash.startsWith('#t=')) {
+          url.hash = '';
+        }
+        window.history.replaceState({}, '', url.toString());
+        return migrated;
+      } catch (error) {
+        console.warn(`Error hydrating localStorage key "${key}" from URL:`, error);
+        return null;
+      }
+    };
+
     const readValueFromStorage = () => {
       try {
+        const seeded = hydrateFromUrl();
+        if (seeded) {
+          setStoredValue(seeded);
+          return;
+        }
+
         const item = window.localStorage.getItem(key);
         if (!item) {
           setStoredValue(initialValue);
@@ -73,7 +109,7 @@ export function useLocalStorage<T>(key: string, initialValue: T, options?: UseLo
       window.removeEventListener('storage', handleStorageEvent);
       window.removeEventListener(LOCAL_STORAGE_EVENT_NAME, handleCustomEvent as EventListener);
     };
-  }, [initialValue, key, migrate]);
+  }, [initialValue, key, migrate, decodeFromUrl]);
 
   const setValue = (value: T | ((val: T) => T)) => {
     try {

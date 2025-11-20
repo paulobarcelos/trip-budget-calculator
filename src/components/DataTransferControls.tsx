@@ -5,14 +5,21 @@ import { initialTripState } from '@/constants/initialState';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { migrateState } from '@/utils/stateMigrations';
 import { TripState } from '@/types';
+import { decodeState, encodeState } from '@/utils/stateEncoding';
 
 export function DataTransferControls() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [tripState, setTripState] = useLocalStorage<TripState>('tripState', initialTripState, {
     migrate: migrateState,
+    decodeFromUrl: decodeState,
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const showMessage = (message: string, isError = false) => {
+    setError(isError ? message : null);
+    setSuccess(isError ? null : message);
+  };
 
   const handleExport = () => {
     try {
@@ -31,12 +38,10 @@ export function DataTransferControls() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setSuccess(`Exported to ${fileName}`);
-      setError(null);
+      showMessage(`Exported to ${fileName}`);
     } catch (err) {
       console.error('Failed to export JSON', err);
-      setError('Could not export data. Please try again.');
-      setSuccess(null);
+      showMessage('Could not export data. Please try again.', true);
     }
   };
 
@@ -53,14 +58,24 @@ export function DataTransferControls() {
       const parsed = JSON.parse(text);
       const migrated = migrateState(parsed);
       setTripState(migrated);
-      setError(null);
-      setSuccess('Import successful. Your data has been restored.');
+      showMessage('Import successful. Your data has been restored.');
     } catch (err) {
       console.error('Failed to import JSON', err);
-      setError('Invalid file. Please select a valid trip-budget JSON export.');
-      setSuccess(null);
+      showMessage('Invalid file. Please select a valid trip-budget JSON export.', true);
     } finally {
       event.target.value = '';
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      const payload = encodeState(tripState);
+      const url = `${window.location.origin}/?data=${payload}`;
+      await navigator.clipboard.writeText(url);
+      showMessage('Shareable link copied to clipboard.');
+    } catch (err) {
+      console.error('Failed to copy link', err);
+      showMessage('Could not copy link. Please try again.', true);
     }
   };
 
@@ -79,6 +94,13 @@ export function DataTransferControls() {
         onClick={handleImportClick}
       >
         Import JSON
+      </button>
+      <button
+        type="button"
+        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+        onClick={handleCopyLink}
+      >
+        Copy Shareable Link
       </button>
       <input
         ref={fileInputRef}
