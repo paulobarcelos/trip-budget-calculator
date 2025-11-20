@@ -78,41 +78,47 @@ export default function UsagePage() {
                       {index > 0 && (
                         <button
                           onClick={() => {
-                            const previousDay = tripState.days[index - 1];
-                            const previousDayExpenses = tripState.usageCosts.days[previousDay.id];
-                            if (!previousDayExpenses) return;
-
                             setTripState(prev => {
+                              const previousDay = prev.days[index - 1];
+                              if (!previousDay) return prev;
+                              const previousDayExpenses = prev.usageCosts.days[previousDay.id];
+                              if (!previousDayExpenses) return prev;
+
+                              const cloneRecord = (record: Record<string, string[]> = {}) =>
+                                Object.fromEntries(
+                                  Object.entries(record).map(([expenseId, travelerIds]) => [
+                                    expenseId,
+                                    [...travelerIds],
+                                  ])
+                                );
+
+                              const clonedDailyShared = cloneRecord(previousDayExpenses.dailyShared);
+                              const clonedDailyPersonal = cloneRecord(previousDayExpenses.dailyPersonal);
+
+                              const filterForDay = (record: Record<string, string[]>) =>
+                                Object.fromEntries(
+                                  Object.entries(record).map(([expenseId, travelerIds]) => [
+                                    expenseId,
+                                    travelerIds.filter(travelerId => {
+                                      const traveler = prev.travelers.find(t => t.id === travelerId);
+                                      return traveler && isDateWithinRange(day.date, traveler.startDate, traveler.endDate);
+                                    }),
+                                  ])
+                                );
+
+                              const filteredDailyShared = filterForDay(clonedDailyShared);
+                              const filteredDailyPersonal = filterForDay(clonedDailyPersonal);
+
                               const newUsageCosts = {
                                 ...prev.usageCosts,
                                 days: {
                                   ...prev.usageCosts.days,
                                   [day.id]: {
-                                    ...prev.usageCosts.days[day.id] ?? {},
-                                    dailyShared: {
-                                      ...previousDayExpenses.dailyShared ?? {}
-                                    },
-                                    dailyPersonal: {
-                                      ...previousDayExpenses.dailyPersonal ?? {}
-                                    }
+                                    dailyShared: filteredDailyShared,
+                                    dailyPersonal: filteredDailyPersonal,
                                   }
                                 }
                               };
-
-                              // Filter out travelers that are not present on this day
-                              Object.entries(newUsageCosts.days[day.id].dailyShared ?? {}).forEach(([expenseId, travelerIds]) => {
-                                newUsageCosts.days[day.id].dailyShared[expenseId] = travelerIds.filter(travelerId => {
-                                  const traveler = tripState.travelers.find(t => t.id === travelerId);
-                                  return traveler && isDateWithinRange(day.date, traveler.startDate, traveler.endDate);
-                                });
-                              });
-                              
-                              Object.entries(newUsageCosts.days[day.id].dailyPersonal ?? {}).forEach(([expenseId, travelerIds]) => {
-                                newUsageCosts.days[day.id].dailyPersonal[expenseId] = travelerIds.filter(travelerId => {
-                                  const traveler = tripState.travelers.find(t => t.id === travelerId);
-                                  return traveler && isDateWithinRange(day.date, traveler.startDate, traveler.endDate);
-                                });
-                              });
 
                               return { ...prev, usageCosts: newUsageCosts };
                             });
@@ -194,20 +200,20 @@ export default function UsagePage() {
                                             return d;
                                           });
 
-                                          const newUsageCosts = {
-                                            ...prev.usageCosts,
-                                            days: {
-                                              ...prev.usageCosts.days,
-                                              [day.id]: {
-                                                ...prev.usageCosts.days[day.id] ?? {},
-                                                dailyPersonal: {
-                                                  ...prev.usageCosts.days[day.id]?.dailyPersonal ?? {},
-                                                  [expense.id]: []
-                                                },
-                                                dailyShared: prev.usageCosts.days[day.id]?.dailyShared ?? {}
-                                              }
+                                      const newUsageCosts = {
+                                          ...prev.usageCosts,
+                                          days: {
+                                            ...prev.usageCosts.days,
+                                            [day.id]: {
+                                              ...prev.usageCosts.days[day.id] ?? {},
+                                              dailyShared: {
+                                                ...prev.usageCosts.days[day.id]?.dailyShared ?? {},
+                                                [expense.id]: []
+                                              },
+                                              dailyPersonal: prev.usageCosts.days[day.id]?.dailyPersonal ?? {}
                                             }
-                                          };
+                                          }
+                                        };
 
                                           return { ...prev, days: newDays, usageCosts: newUsageCosts };
                                         });

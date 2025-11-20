@@ -11,7 +11,7 @@ import { initialTripState } from '@/constants/initialState';
 import { currencies } from '@/data/currencies';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
-import { getDayCount, calculateDailyCost } from '@/utils/tripStateUpdates';
+import { getDayCount, calculateDailyCost, removeExpense } from '@/utils/tripStateUpdates';
 import { shiftDate } from '@/utils/dateMath';
 
 type CurrencySelectProps = {
@@ -239,32 +239,7 @@ export default function ExpensesPage() {
   const handleDeleteExpense = () => {
     if (!expenseToDelete) return;
 
-    switch (expenseToDelete.type) {
-      case 'dailyShared':
-        setTripState({
-          ...tripState,
-          dailySharedExpenses: tripState.dailySharedExpenses.filter(e => e.id !== expenseToDelete.id)
-        });
-        break;
-      case 'dailyPersonal':
-        setTripState({
-          ...tripState,
-          dailyPersonalExpenses: tripState.dailyPersonalExpenses.filter(e => e.id !== expenseToDelete.id)
-        });
-        break;
-      case 'oneTimeShared':
-        setTripState({
-          ...tripState,
-          oneTimeSharedExpenses: tripState.oneTimeSharedExpenses.filter(e => e.id !== expenseToDelete.id)
-        });
-        break;
-      case 'oneTimePersonal':
-        setTripState({
-          ...tripState,
-          oneTimePersonalExpenses: tripState.oneTimePersonalExpenses.filter(e => e.id !== expenseToDelete.id)
-        });
-        break;
-    }
+    setTripState(prev => removeExpense(prev, expenseToDelete.id, expenseToDelete.type));
     setExpenseToDelete(null);
   };
 

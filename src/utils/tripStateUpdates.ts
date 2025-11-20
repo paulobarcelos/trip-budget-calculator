@@ -175,8 +175,16 @@ export function removeExpense(
   expenseId: string,
   expenseType: 'dailyShared' | 'dailyPersonal' | 'oneTimeShared' | 'oneTimePersonal'
 ): TripState {
-  const updatedTripState = { ...tripState };
-  
+  const updatedTripState: TripState = {
+    ...tripState,
+    usageCosts: {
+      ...tripState.usageCosts,
+      days: { ...tripState.usageCosts.days },
+      oneTimeShared: { ...tripState.usageCosts.oneTimeShared },
+      oneTimePersonal: { ...tripState.usageCosts.oneTimePersonal },
+    },
+  };
+
   // Remove the expense from the appropriate list
   switch (expenseType) {
     case 'dailyShared':
@@ -187,26 +195,34 @@ export function removeExpense(
       break;
     case 'oneTimeShared':
       updatedTripState.oneTimeSharedExpenses = tripState.oneTimeSharedExpenses.filter(e => e.id !== expenseId);
-      delete updatedTripState.usageCosts.oneTimeShared[expenseId];
+      if (updatedTripState.usageCosts.oneTimeShared[expenseId]) {
+        delete updatedTripState.usageCosts.oneTimeShared[expenseId];
+      }
       break;
     case 'oneTimePersonal':
       updatedTripState.oneTimePersonalExpenses = tripState.oneTimePersonalExpenses.filter(e => e.id !== expenseId);
-      delete updatedTripState.usageCosts.oneTimePersonal[expenseId];
+      if (updatedTripState.usageCosts.oneTimePersonal[expenseId]) {
+        delete updatedTripState.usageCosts.oneTimePersonal[expenseId];
+      }
       break;
   }
   
   // Clean up usage costs for daily expenses
   if (expenseType === 'dailyShared' || expenseType === 'dailyPersonal') {
-    const updatedDailyUsageCosts = { ...tripState.usageCosts.days };
-    Object.keys(updatedDailyUsageCosts).forEach(dayId => {
-      const dayUsage = updatedDailyUsageCosts[dayId];
+    const updatedDailyUsageCosts = { ...updatedTripState.usageCosts.days };
+    Object.entries(updatedDailyUsageCosts).forEach(([dayId, dayUsage]) => {
+      const nextDayUsage = {
+        dailyShared: { ...dayUsage.dailyShared },
+        dailyPersonal: { ...dayUsage.dailyPersonal },
+      };
       if (expenseType === 'dailyShared') {
-        delete dayUsage.dailyShared[expenseId];
+        delete nextDayUsage.dailyShared[expenseId];
       } else {
-        delete dayUsage.dailyPersonal[expenseId];
+        delete nextDayUsage.dailyPersonal[expenseId];
       }
+      updatedDailyUsageCosts[dayId] = nextDayUsage;
     });
-    
+
     updatedTripState.usageCosts.days = updatedDailyUsageCosts;
   }
   

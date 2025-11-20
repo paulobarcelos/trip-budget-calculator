@@ -86,7 +86,14 @@ export function useLocalStorage<T>(key: string, initialValue: T, options?: UseLo
         const serializedValue = JSON.stringify(valueToStore);
         window.localStorage.setItem(key, serializedValue);
         const customEvent: LocalStorageEventDetail<T> = { key, value: valueToStore };
-        window.dispatchEvent(new CustomEvent(LOCAL_STORAGE_EVENT_NAME, { detail: customEvent }));
+        // Defer the broadcast to avoid React warning about updating a component
+        // while another component is rendering.
+        const dispatch = () => window.dispatchEvent(new CustomEvent(LOCAL_STORAGE_EVENT_NAME, { detail: customEvent }));
+        if (typeof queueMicrotask === 'function') {
+          queueMicrotask(dispatch);
+        } else {
+          setTimeout(dispatch, 0);
+        }
       }
     } catch (error) {
       console.warn(`Error setting localStorage key "${key}":`, error);
