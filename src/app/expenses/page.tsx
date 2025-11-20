@@ -14,6 +14,28 @@ import { instructions } from './instructions';
 import { getDayCount, calculateDailyCost } from '@/utils/tripStateUpdates';
 import { shiftDate } from '@/utils/dateMath';
 
+type CurrencySelectProps = {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+};
+
+function CurrencySelect({ value, onChange, className }: CurrencySelectProps) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={className}
+    >
+      {currencies.map((currency) => (
+        <option key={currency.code} value={currency.code}>
+          {currency.code} - {currency.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function ExpensesPage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
@@ -491,20 +513,6 @@ export default function ExpensesPage() {
     });
   };
 
-  const CurrencySelect = ({ value, onChange, className }: { value: string, onChange: (value: string) => void, className?: string }) => (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={className}
-    >
-      {currencies.map(currency => (
-        <option key={currency.code} value={currency.code}>
-          {currency.code} - {currency.name}
-        </option>
-      ))}
-    </select>
-  );
-
   if (!isInitialized) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -578,7 +586,7 @@ export default function ExpensesPage() {
                   id="startDate"
                   value={newDailySharedExpense.startDate}
                   min={tripState.startDate || undefined}
-                  max={formStartDateMax ?? tripState.endDate || undefined}
+                  max={(formStartDateMax ?? tripState.endDate) ?? undefined}
                   onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, startDate: e.target.value })}
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                 />
@@ -593,7 +601,7 @@ export default function ExpensesPage() {
                   name="endDate"
                   id="endDate"
                   value={newDailySharedExpense.endDate}
-                  min={formEndDateMin ?? shiftDate(tripState.startDate, 1) ?? tripState.startDate || undefined}
+                  min={(formEndDateMin ?? shiftDate(tripState.startDate, 1) ?? tripState.startDate) ?? undefined}
                   max={tripState.endDate || undefined}
                   onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, endDate: e.target.value })}
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"

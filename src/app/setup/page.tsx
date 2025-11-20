@@ -22,6 +22,8 @@ export default function SetupPage() {
   // Initialize form state from tripState only once when isInitialized becomes true
   useEffect(() => {
     if (isInitialized && tripState) {
+      // Sync persisted trip state into the form once storage has loaded.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormState({
         startDate: tripState.startDate,
         endDate: tripState.endDate,
