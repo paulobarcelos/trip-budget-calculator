@@ -1,11 +1,11 @@
 # Trip Budget Calculator Specification
 
 ## Problem Statement
-A tool to help groups of travelers manage and split expenses during trips where:
-- People may join/leave at different dates
-- Some expenses are shared, others are personal
-- Some expenses are one-time, others are daily
-- Expenses need to be fairly split based on actual usage
+Plan a trip budget before you travel, simulate different cost assumptions, and see whether a trip is feasible for each traveler. The app makes it fast to:
+- Sketch a draft itinerary (dates, travelers) and estimate shared/personal costs.
+- Adjust assumptions (rates, participants, durations) and instantly see per-person totals.
+- Share a snapshot link with the group so everyone can review the plan.
+- When the trip happens, flip the same data into “usage” to track real participation and final splitting.
 
 ## Core Concepts
 
@@ -51,6 +51,16 @@ Tracks who is using which expense on which day:
 - Users can be marked as using/not using any expense
 
 ## User Stories
+
+### Planning Stories
+
+#### US0: Plan Trip Budget
+As a trip organizer, I want to model the full trip budget before booking
+**Acceptance Criteria:**
+- Enter dates, travelers, and expenses quickly to see per-person and total costs.
+- Editing any cost, participant list, or date range updates all totals instantly.
+- Can tweak shared vs personal, daily vs one-time expenses to test different scenarios.
+- Share a snapshot link so others can review the exact plan without importing files.
 
 ### Trip Setup Stories
 
