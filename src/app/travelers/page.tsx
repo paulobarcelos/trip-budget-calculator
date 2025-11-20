@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ConfirmationDialog } from '@/components/ConfirmationDialog';
 import { initialTripState } from '@/constants/initialState';
-import { updateTravelerDates } from '@/utils/tripStateUpdates';
+import { sortTravelers, updateTravelerDates } from '@/utils/tripStateUpdates';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
 import { shiftDate } from '@/utils/dateMath';
@@ -66,7 +66,7 @@ export default function TravelersPage() {
 
     setTripState({
       ...tripState,
-      travelers: [
+      travelers: sortTravelers([
         ...tripState.travelers,
         {
           id: crypto.randomUUID(),
@@ -74,7 +74,7 @@ export default function TravelersPage() {
           startDate,
           endDate,
         },
-      ],
+      ]),
     });
 
     (e.target as HTMLFormElement).reset();
@@ -110,12 +110,17 @@ export default function TravelersPage() {
     );
 
     if (updates.name) {
-      updatedTripState.travelers = updatedTripState.travelers.map(traveler =>
-        traveler.id === travelerId ? { ...traveler, name: updates.name! } : traveler
+      updatedTripState.travelers = sortTravelers(
+        updatedTripState.travelers.map(traveler =>
+          traveler.id === travelerId ? { ...traveler, name: updates.name! } : traveler
+        )
       );
     }
 
-    setTripState(updatedTripState);
+    setTripState({
+      ...updatedTripState,
+      travelers: sortTravelers(updatedTripState.travelers),
+    });
   };
 
   const handleRemoveTraveler = (travelerId: string) => {
@@ -125,7 +130,7 @@ export default function TravelersPage() {
     // Then remove the traveler
     setTripState({
       ...cleanedState,
-      travelers: cleanedState.travelers.filter(t => t.id !== travelerId),
+      travelers: sortTravelers(cleanedState.travelers.filter(t => t.id !== travelerId)),
     });
   };
 

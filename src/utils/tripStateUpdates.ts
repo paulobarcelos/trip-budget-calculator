@@ -1,4 +1,4 @@
-import { TripState, Day } from '@/types';
+import { TripState, Day, Traveler } from '@/types';
 
 const DAY_IN_MS = 1000 * 60 * 60 * 24;
 
@@ -8,6 +8,12 @@ const parseDate = (value: string): Date | null => {
   if (Number.isNaN(timestamp)) return null;
   return new Date(timestamp);
 };
+
+export function sortTravelers(travelers: Traveler[]): Traveler[] {
+  return [...travelers].sort((a, b) => a.name.localeCompare(b.name, undefined, {
+    sensitivity: 'base',
+  }));
+}
 
 export function getDayCount(startDate: string, endDate: string): number {
   const start = parseDate(startDate);
@@ -96,7 +102,7 @@ export function updateTripDates(tripState: TripState, newStartDate: string, newE
     startDate: newStartDate,
     endDate: newEndDate,
     days: updatedDays,
-    travelers: updatedTravelers,
+    travelers: sortTravelers(updatedTravelers),
     dailySharedExpenses: updatedDailySharedExpenses,
     usageCosts: {
       ...tripState.usageCosts,
@@ -160,7 +166,7 @@ export function updateTravelerDates(
 
   return {
     ...tripState,
-    travelers: updatedTravelers,
+    travelers: sortTravelers(updatedTravelers),
     usageCosts: {
       ...tripState.usageCosts,
       days: updatedDailyUsageCosts,
