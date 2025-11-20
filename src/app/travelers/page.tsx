@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { TripState } from '@/types';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
-import { ConfirmationDialog } from '@/components/ConfirmationDialog';
-import { initialTripState } from '@/constants/initialState';
-import { sortTravelers, updateTravelerDates } from '@/utils/tripStateUpdates';
-import { Instructions } from '@/components/Instructions';
-import { instructions } from './instructions';
-import { shiftDate } from '@/utils/dateMath';
-import { migrateState } from '@/utils/stateMigrations';
-import { decodeState } from '@/utils/stateEncoding';
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { TripState } from "@/types";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { ConfirmationDialog } from "@/components/ConfirmationDialog";
+import { initialTripState } from "@/constants/initialState";
+import { sortTravelers, updateTravelerDates } from "@/utils/tripStateUpdates";
+import { Instructions } from "@/components/Instructions";
+import { instructions } from "./instructions";
+import { shiftDate } from "@/utils/dateMath";
+import { migrateState } from "@/utils/stateMigrations";
+import { decodeState } from "@/utils/stateEncoding";
 
 interface TravelerToDelete {
   id: string;
@@ -20,21 +20,31 @@ interface TravelerToDelete {
 
 export default function TravelersPage() {
   const router = useRouter();
-  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState, {
-    migrate: migrateState,
-    decodeFromUrl: decodeState,
-  });
-  const [travelerToDelete, setTravelerToDelete] = useState<TravelerToDelete | null>(null);
+  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>(
+    "tripState",
+    initialTripState,
+    {
+      migrate: migrateState,
+      decodeFromUrl: decodeState,
+    },
+  );
+  const [travelerToDelete, setTravelerToDelete] =
+    useState<TravelerToDelete | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const tripStart = tripState.startDate;
   const tripEnd = tripState.endDate;
-  const tripStartMax = useMemo(() => shiftDate(tripEnd, -1) ?? tripEnd, [tripEnd]);
+  const tripStartMax = useMemo(
+    () => shiftDate(tripEnd, -1) ?? tripEnd,
+    [tripEnd],
+  );
 
   if (!isInitialized) {
     return (
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Travelers</h1>
+        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
+          Travelers
+        </h1>
         <div className="animate-pulse">
           <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
           <div className="space-y-4">
@@ -48,22 +58,25 @@ export default function TravelersPage() {
   const handleAddTraveler = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const name = formData.get('name') as string;
-    const startDate = formData.get('startDate') as string;
-    const endDate = formData.get('endDate') as string;
+    const name = formData.get("name") as string;
+    const startDate = formData.get("startDate") as string;
+    const endDate = formData.get("endDate") as string;
 
     if (!name.trim()) {
-      setError('Traveler name is required.');
+      setError("Traveler name is required.");
       return;
     }
 
     if (!startDate || !endDate || startDate >= endDate) {
-      setError('Departure date must be after the start date.');
+      setError("Departure date must be after the start date.");
       return;
     }
 
-    if ((tripStart && startDate < tripStart) || (tripEnd && endDate > tripEnd)) {
-      setError('Traveler dates must stay within the trip window.');
+    if (
+      (tripStart && startDate < tripStart) ||
+      (tripEnd && endDate > tripEnd)
+    ) {
+      setError("Traveler dates must stay within the trip window.");
       return;
     }
 
@@ -87,9 +100,9 @@ export default function TravelersPage() {
 
   const handleUpdateTraveler = (
     travelerId: string,
-    updates: { name?: string; startDate?: string; endDate?: string }
+    updates: { name?: string; startDate?: string; endDate?: string },
   ) => {
-    const traveler = tripState.travelers.find(t => t.id === travelerId);
+    const traveler = tripState.travelers.find((t) => t.id === travelerId);
     if (!traveler) return;
 
     const requestedStart = updates.startDate ?? traveler.startDate;
@@ -101,7 +114,7 @@ export default function TravelersPage() {
       tripEnd && requestedEnd > tripEnd ? tripEnd : requestedEnd;
 
     if (clampedStart >= clampedEnd) {
-      setError('Departure must be later than the start date.');
+      setError("Departure must be later than the start date.");
       return;
     }
 
@@ -111,14 +124,16 @@ export default function TravelersPage() {
       tripState,
       travelerId,
       clampedStart !== traveler.startDate ? clampedStart : null,
-      clampedEnd !== traveler.endDate ? clampedEnd : null
+      clampedEnd !== traveler.endDate ? clampedEnd : null,
     );
 
     if (updates.name) {
       updatedTripState.travelers = sortTravelers(
-        updatedTripState.travelers.map(traveler =>
-          traveler.id === travelerId ? { ...traveler, name: updates.name! } : traveler
-        )
+        updatedTripState.travelers.map((traveler) =>
+          traveler.id === travelerId
+            ? { ...traveler, name: updates.name! }
+            : traveler,
+        ),
       );
     }
 
@@ -131,21 +146,25 @@ export default function TravelersPage() {
   const handleRemoveTraveler = (travelerId: string) => {
     // First update the traveler's dates to null to clean up their usage entries
     const cleanedState = updateTravelerDates(tripState, travelerId, null, null);
-    
+
     // Then remove the traveler
     setTripState({
       ...cleanedState,
-      travelers: sortTravelers(cleanedState.travelers.filter(t => t.id !== travelerId)),
+      travelers: sortTravelers(
+        cleanedState.travelers.filter((t) => t.id !== travelerId),
+      ),
     });
   };
 
   const handleContinue = () => {
-    router.push('/expenses');
+    router.push("/expenses");
   };
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Travelers</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
+        Travelers
+      </h1>
       <Instructions text={instructions} />
       {error && (
         <div className="mb-6 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-300">
@@ -153,11 +172,19 @@ export default function TravelersPage() {
         </div>
       )}
 
-      <form onSubmit={handleAddTraveler} className="mb-8 space-y-4 bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Add Traveler</h2>
-        
+      <form
+        onSubmit={handleAddTraveler}
+        className="mb-8 space-y-4 bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700"
+      >
+        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+          Add Traveler
+        </h2>
+
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             Name
           </label>
           <input
@@ -170,7 +197,10 @@ export default function TravelersPage() {
         </div>
 
         <div>
-          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="startDate"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             Start Date
           </label>
           <input
@@ -186,7 +216,10 @@ export default function TravelersPage() {
         </div>
 
         <div>
-          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="endDate"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             End Date
           </label>
           <input
@@ -219,11 +252,15 @@ export default function TravelersPage() {
               <input
                 type="text"
                 value={traveler.name}
-                onChange={(e) => handleUpdateTraveler(traveler.id, { name: e.target.value })}
+                onChange={(e) =>
+                  handleUpdateTraveler(traveler.id, { name: e.target.value })
+                }
                 className="text-lg font-medium text-gray-900 dark:text-gray-100 bg-transparent border-none focus:ring-0 p-0"
               />
               <button
-                onClick={() => setTravelerToDelete({ id: traveler.id, name: traveler.name })}
+                onClick={() =>
+                  setTravelerToDelete({ id: traveler.id, name: traveler.name })
+                }
                 className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
               >
                 Remove
@@ -240,7 +277,11 @@ export default function TravelersPage() {
                   value={traveler.startDate}
                   min={tripStart}
                   max={shiftDate(traveler.endDate, -1) ?? traveler.endDate}
-                  onChange={(e) => handleUpdateTraveler(traveler.id, { startDate: e.target.value })}
+                  onChange={(e) =>
+                    handleUpdateTraveler(traveler.id, {
+                      startDate: e.target.value,
+                    })
+                  }
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
                 />
               </div>
@@ -254,7 +295,11 @@ export default function TravelersPage() {
                   value={traveler.endDate}
                   min={shiftDate(traveler.startDate, 1) ?? traveler.startDate}
                   max={tripEnd}
-                  onChange={(e) => handleUpdateTraveler(traveler.id, { endDate: e.target.value })}
+                  onChange={(e) =>
+                    handleUpdateTraveler(traveler.id, {
+                      endDate: e.target.value,
+                    })
+                  }
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
                 />
               </div>
@@ -281,4 +326,4 @@ export default function TravelersPage() {
       />
     </div>
   );
-} 
+}

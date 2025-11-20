@@ -1,13 +1,19 @@
-'use client';
+"use client";
 
-import { PropsWithChildren, createContext, useCallback, useContext, useMemo } from 'react';
+import {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
 
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { TripState } from '@/types';
-import { initialTripState } from '@/constants/initialState';
-import { currencies } from '@/data/currencies';
-import { migrateState } from '@/utils/stateMigrations';
-import { decodeState } from '@/utils/stateEncoding';
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { TripState } from "@/types";
+import { initialTripState } from "@/constants/initialState";
+import { currencies } from "@/data/currencies";
+import { migrateState } from "@/utils/stateMigrations";
+import { decodeState } from "@/utils/stateEncoding";
 
 interface DisplayCurrencyContextValue {
   displayCurrency: string;
@@ -15,9 +21,12 @@ interface DisplayCurrencyContextValue {
   isApproximate: (sourceCurrency: string) => boolean;
 }
 
-const SUPPORTED_CURRENCY_CODES = new Set(currencies.map(currency => currency.code));
+const SUPPORTED_CURRENCY_CODES = new Set(
+  currencies.map((currency) => currency.code),
+);
 
-const DisplayCurrencyContext = createContext<DisplayCurrencyContextValue | null>(null);
+const DisplayCurrencyContext =
+  createContext<DisplayCurrencyContextValue | null>(null);
 
 function normalizeCurrency(code: string | null | undefined): string | null {
   if (!code) {
@@ -29,30 +38,38 @@ function normalizeCurrency(code: string | null | undefined): string | null {
 }
 
 export function DisplayCurrencyProvider({ children }: PropsWithChildren) {
-  const [tripState, setTripState] = useLocalStorage<TripState>('tripState', initialTripState, {
-    migrate: migrateState,
-    decodeFromUrl: decodeState,
-  });
+  const [tripState, setTripState] = useLocalStorage<TripState>(
+    "tripState",
+    initialTripState,
+    {
+      migrate: migrateState,
+      decodeFromUrl: decodeState,
+    },
+  );
 
-  const effectiveCurrency = normalizeCurrency(tripState.displayCurrency) ?? initialTripState.displayCurrency;
+  const effectiveCurrency =
+    normalizeCurrency(tripState.displayCurrency) ??
+    initialTripState.displayCurrency;
 
   const setDisplayCurrency = useCallback(
     (nextCurrency: string) => {
-      const normalized = normalizeCurrency(nextCurrency) ?? initialTripState.displayCurrency;
-      setTripState(prev => ({
+      const normalized =
+        normalizeCurrency(nextCurrency) ?? initialTripState.displayCurrency;
+      setTripState((prev) => ({
         ...prev,
         displayCurrency: normalized,
       }));
     },
-    [setTripState]
+    [setTripState],
   );
 
   const isApproximate = useCallback(
     (sourceCurrency: string) => {
-      const normalizedSource = normalizeCurrency(sourceCurrency) ?? initialTripState.displayCurrency;
+      const normalizedSource =
+        normalizeCurrency(sourceCurrency) ?? initialTripState.displayCurrency;
       return normalizedSource !== effectiveCurrency;
     },
-    [effectiveCurrency]
+    [effectiveCurrency],
   );
 
   const contextValue = useMemo<DisplayCurrencyContextValue>(
@@ -61,17 +78,23 @@ export function DisplayCurrencyProvider({ children }: PropsWithChildren) {
       setDisplayCurrency,
       isApproximate,
     }),
-    [effectiveCurrency, setDisplayCurrency, isApproximate]
+    [effectiveCurrency, setDisplayCurrency, isApproximate],
   );
 
-  return <DisplayCurrencyContext.Provider value={contextValue}>{children}</DisplayCurrencyContext.Provider>;
+  return (
+    <DisplayCurrencyContext.Provider value={contextValue}>
+      {children}
+    </DisplayCurrencyContext.Provider>
+  );
 }
 
 export function useDisplayCurrency() {
   const context = useContext(DisplayCurrencyContext);
 
   if (!context) {
-    throw new Error('useDisplayCurrency must be used within a DisplayCurrencyProvider');
+    throw new Error(
+      "useDisplayCurrency must be used within a DisplayCurrencyProvider",
+    );
   }
 
   return context;
