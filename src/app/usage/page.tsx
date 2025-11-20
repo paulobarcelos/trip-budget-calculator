@@ -6,13 +6,15 @@ import { useRouter } from 'next/navigation';
 import { Tab } from '@headlessui/react';
 import { classNames } from '@/utils/classNames';
 import { initialTripState } from '@/constants/initialState';
-import { calculateDailyCost } from '@/utils/tripStateUpdates';
+import { calculateDailyCost, getDayCount } from '@/utils/tripStateUpdates';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
 
 export default function UsagePage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
+  const isDateWithinRange = (date: string, start: string, end: string) =>
+    Boolean(date && start && end) && date >= start && date < end;
 
   if (!isInitialized) {
     return (
@@ -101,18 +103,14 @@ export default function UsagePage() {
                               Object.entries(newUsageCosts.days[day.id].dailyShared ?? {}).forEach(([expenseId, travelerIds]) => {
                                 newUsageCosts.days[day.id].dailyShared[expenseId] = travelerIds.filter(travelerId => {
                                   const traveler = tripState.travelers.find(t => t.id === travelerId);
-                                  return traveler && 
-                                    new Date(day.date) >= new Date(traveler.startDate) && 
-                                    new Date(day.date) <= new Date(traveler.endDate);
+                                  return traveler && isDateWithinRange(day.date, traveler.startDate, traveler.endDate);
                                 });
                               });
-
+                              
                               Object.entries(newUsageCosts.days[day.id].dailyPersonal ?? {}).forEach(([expenseId, travelerIds]) => {
                                 newUsageCosts.days[day.id].dailyPersonal[expenseId] = travelerIds.filter(travelerId => {
                                   const traveler = tripState.travelers.find(t => t.id === travelerId);
-                                  return traveler && 
-                                    new Date(day.date) >= new Date(traveler.startDate) && 
-                                    new Date(day.date) <= new Date(traveler.endDate);
+                                  return traveler && isDateWithinRange(day.date, traveler.startDate, traveler.endDate);
                                 });
                               });
 
@@ -130,13 +128,11 @@ export default function UsagePage() {
                     <div className="mb-8">
                       <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Shared Expenses</h4>
                       {tripState.dailySharedExpenses.some(expense => 
-                        new Date(day.date) >= new Date(expense.startDate) && 
-                        new Date(day.date) <= new Date(expense.endDate)
+                        isDateWithinRange(day.date, expense.startDate, expense.endDate)
                       ) ? (
                         <div className="space-y-4">
                           {tripState.dailySharedExpenses.map((expense) => {
-                            const isExpenseActive = new Date(day.date) >= new Date(expense.startDate) && 
-                                                  new Date(day.date) <= new Date(expense.endDate);
+                            const isExpenseActive = isDateWithinRange(day.date, expense.startDate, expense.endDate);
                             if (!isExpenseActive) return null;
 
                             return (
@@ -147,7 +143,7 @@ export default function UsagePage() {
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
                                       {(() => {
                                         const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate);
-                                        const days = Math.ceil((new Date(expense.endDate).getTime() - new Date(expense.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                                        const days = getDayCount(expense.startDate, expense.endDate);
                                         return `${dailyCost.toFixed(2)} ${expense.currency} per day (${expense.totalCost} ${expense.currency} total over ${days} days)`;
                                       })()}
                                     </p>
@@ -164,10 +160,7 @@ export default function UsagePage() {
 
                                           // Get all travelers present on this day
                                           const presentTravelers = tripState.travelers
-                                            .filter(traveler => 
-                                              new Date(day.date) >= new Date(traveler.startDate) && 
-                                              new Date(day.date) <= new Date(traveler.endDate)
-                                            )
+                                            .filter(traveler => isDateWithinRange(day.date, traveler.startDate, traveler.endDate))
                                             .map(t => t.id);
 
                                           const newUsageCosts = {
@@ -227,8 +220,7 @@ export default function UsagePage() {
                                 </div>
                                 <div className="space-y-2">
                                   {tripState.travelers.map((traveler) => {
-                                    const isTravelerPresent = new Date(day.date) >= new Date(traveler.startDate) && 
-                                                            new Date(day.date) <= new Date(traveler.endDate);
+                                    const isTravelerPresent = isDateWithinRange(day.date, traveler.startDate, traveler.endDate);
                                     if (!isTravelerPresent) return null;
 
                                     return (
@@ -309,10 +301,7 @@ export default function UsagePage() {
 
                                         // Get all travelers present on this day
                                         const presentTravelers = tripState.travelers
-                                          .filter(traveler => 
-                                            new Date(day.date) >= new Date(traveler.startDate) && 
-                                            new Date(day.date) <= new Date(traveler.endDate)
-                                          )
+                                          .filter(traveler => isDateWithinRange(day.date, traveler.startDate, traveler.endDate))
                                           .map(t => t.id);
 
                                         const newUsageCosts = {
@@ -371,8 +360,7 @@ export default function UsagePage() {
                               </div>
                               <div className="space-y-2">
                                 {tripState.travelers.map((traveler) => {
-                                  const isTravelerPresent = new Date(day.date) >= new Date(traveler.startDate) && 
-                                                          new Date(day.date) <= new Date(traveler.endDate);
+                                  const isTravelerPresent = isDateWithinRange(day.date, traveler.startDate, traveler.endDate);
                                   if (!isTravelerPresent) return null;
 
                                   return (

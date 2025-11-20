@@ -3,12 +3,13 @@
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ConfirmationDialog } from '@/components/ConfirmationDialog';
 import { initialTripState } from '@/constants/initialState';
 import { updateTravelerDates } from '@/utils/tripStateUpdates';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
+import { shiftDate } from '@/utils/dateMath';
 
 interface TravelerToDelete {
   id: string;
@@ -19,6 +20,11 @@ export default function TravelersPage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>('tripState', initialTripState);
   const [travelerToDelete, setTravelerToDelete] = useState<TravelerToDelete | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const tripStart = tripState.startDate;
+  const tripEnd = tripState.endDate;
+  const tripStartMax = useMemo(() => shiftDate(tripEnd, -1) ?? tripEnd, [tripEnd]);
 
   if (!isInitialized) {
     return (
@@ -41,6 +47,23 @@ export default function TravelersPage() {
     const startDate = formData.get('startDate') as string;
     const endDate = formData.get('endDate') as string;
 
+    if (!name.trim()) {
+      setError('Traveler name is required.');
+      return;
+    }
+
+    if (!startDate || !endDate || startDate >= endDate) {
+      setError('Departure date must be after the start date.');
+      return;
+    }
+
+    if ((tripStart && startDate < tripStart) || (tripEnd && endDate > tripEnd)) {
+      setError('Traveler dates must stay within the trip window.');
+      return;
+    }
+
+    setError(null);
+
     setTripState({
       ...tripState,
       travelers: [
@@ -61,11 +84,29 @@ export default function TravelersPage() {
     travelerId: string,
     updates: { name?: string; startDate?: string; endDate?: string }
   ) => {
+    const traveler = tripState.travelers.find(t => t.id === travelerId);
+    if (!traveler) return;
+
+    const requestedStart = updates.startDate ?? traveler.startDate;
+    const requestedEnd = updates.endDate ?? traveler.endDate;
+
+    const clampedStart =
+      tripStart && requestedStart < tripStart ? tripStart : requestedStart;
+    const clampedEnd =
+      tripEnd && requestedEnd > tripEnd ? tripEnd : requestedEnd;
+
+    if (clampedStart >= clampedEnd) {
+      setError('Departure must be later than the start date.');
+      return;
+    }
+
+    setError(null);
+
     const updatedTripState = updateTravelerDates(
       tripState,
       travelerId,
-      updates.startDate || null,
-      updates.endDate || null
+      clampedStart !== traveler.startDate ? clampedStart : null,
+      clampedEnd !== traveler.endDate ? clampedEnd : null
     );
 
     if (updates.name) {
@@ -96,6 +137,11 @@ export default function TravelersPage() {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Travelers</h1>
       <Instructions text={instructions} />
+      {error && (
+        <div className="mb-6 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-300">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleAddTraveler} className="mb-8 space-y-4 bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700">
         <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Add Traveler</h2>
@@ -122,9 +168,9 @@ export default function TravelersPage() {
             name="startDate"
             id="startDate"
             required
-            min={tripState.startDate}
-            max={tripState.endDate}
-            defaultValue={tripState.startDate}
+            min={tripStart}
+            max={tripStartMax ?? tripEnd}
+            defaultValue={tripStart}
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
           />
         </div>
@@ -138,9 +184,9 @@ export default function TravelersPage() {
             name="endDate"
             id="endDate"
             required
-            min={tripState.startDate}
-            max={tripState.endDate}
-            defaultValue={tripState.endDate}
+            min={shiftDate(tripStart, 1) ?? tripStart}
+            max={tripEnd}
+            defaultValue={tripEnd}
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
           />
         </div>
@@ -182,8 +228,8 @@ export default function TravelersPage() {
                 <input
                   type="date"
                   value={traveler.startDate}
-                  min={tripState.startDate}
-                  max={tripState.endDate}
+                  min={tripStart}
+                  max={shiftDate(traveler.endDate, -1) ?? traveler.endDate}
                   onChange={(e) => handleUpdateTraveler(traveler.id, { startDate: e.target.value })}
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
                 />
@@ -196,8 +242,8 @@ export default function TravelersPage() {
                 <input
                   type="date"
                   value={traveler.endDate}
-                  min={tripState.startDate}
-                  max={tripState.endDate}
+                  min={shiftDate(traveler.startDate, 1) ?? traveler.startDate}
+                  max={tripEnd}
                   onChange={(e) => handleUpdateTraveler(traveler.id, { endDate: e.target.value })}
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
                 />

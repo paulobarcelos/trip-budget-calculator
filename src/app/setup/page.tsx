@@ -2,12 +2,13 @@
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState } from '@/types';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { initialTripState } from '@/constants/initialState';
 import { updateTripDates } from '@/utils/tripStateUpdates';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
+import { shiftDate } from '@/utils/dateMath';
 
 export default function SetupPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function SetupPage() {
     startDate: initialTripState.startDate,
     endDate: initialTripState.endDate,
   }));
+  const [error, setError] = useState<string | null>(null);
 
   // Initialize form state from tripState only once when isInitialized becomes true
   useEffect(() => {
@@ -34,6 +36,11 @@ export default function SetupPage() {
       
       // Only update trip state if we have all required values
       if (isInitialized && newState.startDate && newState.endDate) {
+        if (newState.startDate >= newState.endDate) {
+          setError('End date must be later than the start date.');
+          return newState;
+        }
+        setError(null);
         const updatedTripState = updateTripDates(tripState, newState.startDate, newState.endDate);
         setTripState(updatedTripState);
       }
@@ -41,6 +48,9 @@ export default function SetupPage() {
       return newState;
     });
   };
+
+  const startDateMax = useMemo(() => shiftDate(formState.endDate, -1) ?? undefined, [formState.endDate]);
+  const endDateMin = useMemo(() => shiftDate(formState.startDate, 1) ?? undefined, [formState.startDate]);
 
   if (!isInitialized) {
     return (
@@ -61,7 +71,12 @@ export default function SetupPage() {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Setup Trip</h1>
       <Instructions text={instructions} />
-      <div className="space-y-6">
+        <div className="space-y-6">
+        {error && (
+          <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
         <div>
           <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Start Date
@@ -73,6 +88,7 @@ export default function SetupPage() {
             required
             value={formState.startDate}
             onChange={(e) => handleFormChange({ startDate: e.target.value })}
+            max={startDateMax}
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
           />
         </div>
@@ -88,6 +104,7 @@ export default function SetupPage() {
             required
             value={formState.endDate}
             onChange={(e) => handleFormChange({ endDate: e.target.value })}
+            min={endDateMin}
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
           />
         </div>

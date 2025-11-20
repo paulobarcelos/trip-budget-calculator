@@ -10,6 +10,7 @@ import { currencies } from '@/data/currencies';
 import { Instructions } from '@/components/Instructions';
 import { useDisplayCurrency } from '@/providers/DisplayCurrencyProvider';
 import { instructions } from './instructions';
+import { getDayCount } from '@/utils/tripStateUpdates';
 
 type CurrencyTotal = {
   amount: number;
@@ -91,10 +92,8 @@ export default function BudgetPage() {
     endDate: string,
     currency: string
   ): CurrencyTotal => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const safeDays = days > 0 ? days : 1;
+    const dayCount = getDayCount(startDate, endDate);
+    const safeDays = dayCount > 0 ? dayCount : 1;
     const dailyCost = totalCost / safeDays;
     return convertAmount(dailyCost, currency);
   };

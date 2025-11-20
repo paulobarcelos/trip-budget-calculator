@@ -1,29 +1,58 @@
 import { TripState, Day } from '@/types';
 
+const DAY_IN_MS = 1000 * 60 * 60 * 24;
+
+const parseDate = (value: string): Date | null => {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return null;
+  return new Date(timestamp);
+};
+
+export function getDayCount(startDate: string, endDate: string): number {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  if (!start || !end) return 0;
+  const diff = end.getTime() - start.getTime();
+  if (diff <= 0) return 0;
+  return Math.floor(diff / DAY_IN_MS);
+}
+
 export function calculateDailyCost(totalCost: number, startDate: string, endDate: string): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  return totalCost / days;
+  const dayCount = getDayCount(startDate, endDate);
+  if (dayCount <= 0) {
+    return totalCost;
+  }
+  return totalCost / dayCount;
 }
 
 function getDayId(date: string): string {
   return date;
 }
 
-function generateDaysForDateRange(startDate: string, endDate: string): Day[] {
+export function generateDaysForDateRange(startDate: string, endDate: string): Day[] {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  if (!start || !end) {
+    return [];
+  }
+
+  const dayCount = getDayCount(startDate, endDate);
+  if (dayCount <= 0) {
+    return [];
+  }
+
   const days: Day[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-    const dateStr = date.toISOString().split('T')[0];
+  for (let offset = 0; offset < dayCount; offset += 1) {
+    const current = new Date(start);
+    current.setUTCDate(current.getUTCDate() + offset);
+    const dateStr = current.toISOString().split('T')[0];
     days.push({
       id: getDayId(dateStr),
       date: dateStr,
     });
   }
-  
+
   return days;
 }
 
@@ -51,15 +80,15 @@ export function updateTripDates(tripState: TripState, newStartDate: string, newE
   // Update daily shared expenses to be within trip dates
   const updatedDailySharedExpenses = tripState.dailySharedExpenses.map(expense => ({
     ...expense,
-    startDate: new Date(expense.startDate) < new Date(newStartDate) ? newStartDate : expense.startDate,
-    endDate: new Date(expense.endDate) > new Date(newEndDate) ? newEndDate : expense.endDate,
+    startDate: expense.startDate < newStartDate ? newStartDate : expense.startDate,
+    endDate: expense.endDate > newEndDate ? newEndDate : expense.endDate,
   }));
 
   // Update travelers' dates to be within trip dates
   const updatedTravelers = tripState.travelers.map(traveler => ({
     ...traveler,
-    startDate: new Date(traveler.startDate) < new Date(newStartDate) ? newStartDate : traveler.startDate,
-    endDate: new Date(traveler.endDate) > new Date(newEndDate) ? newEndDate : traveler.endDate,
+    startDate: traveler.startDate < newStartDate ? newStartDate : traveler.startDate,
+    endDate: traveler.endDate > newEndDate ? newEndDate : traveler.endDate,
   }));
   
   return {
@@ -102,8 +131,7 @@ export function updateTravelerDates(
     
     if (!traveler) return;
     
-    const isDateInRange = dayDate >= (newStartDate || traveler.startDate) && 
-                         dayDate <= (newEndDate || traveler.endDate);
+    const isDateInRange = dayDate >= traveler.startDate && dayDate < traveler.endDate;
     
     if (!isDateInRange) {
       // Remove traveler from daily shared expenses for this day

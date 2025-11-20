@@ -2,7 +2,7 @@
 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { TripState, DailySharedExpense, DailyPersonalExpense, OneTimeSharedExpense, OneTimePersonalExpense } from '@/types';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tab } from '@headlessui/react';
 import { classNames } from '@/utils/classNames';
@@ -11,6 +11,8 @@ import { initialTripState } from '@/constants/initialState';
 import { currencies } from '@/data/currencies';
 import { Instructions } from '@/components/Instructions';
 import { instructions } from './instructions';
+import { getDayCount, calculateDailyCost } from '@/utils/tripStateUpdates';
+import { shiftDate } from '@/utils/dateMath';
 
 export default function ExpensesPage() {
   const router = useRouter();
@@ -35,6 +37,14 @@ export default function ExpensesPage() {
     endDate: tripState.endDate,
     currency: 'USD',
   });
+  const formStartDateMax = useMemo(
+    () => shiftDate(newDailySharedExpense.endDate, -1),
+    [newDailySharedExpense.endDate]
+  );
+  const formEndDateMin = useMemo(
+    () => shiftDate(newDailySharedExpense.startDate, 1),
+    [newDailySharedExpense.startDate]
+  );
 
   // Daily Personal Expense form state
   const [newDailyPersonalExpense, setNewDailyPersonalExpense] = useState({
@@ -562,44 +572,43 @@ export default function ExpensesPage() {
                   <label htmlFor="startDate" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
                     Start Date
                   </label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    id="startDate"
-                    value={newDailySharedExpense.startDate}
-                    min={tripState.startDate}
-                    max={tripState.endDate}
-                    onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, startDate: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                  />
-                </div>
+                <input
+                  type="date"
+                  name="startDate"
+                  id="startDate"
+                  value={newDailySharedExpense.startDate}
+                  min={tripState.startDate || undefined}
+                  max={formStartDateMax ?? tripState.endDate || undefined}
+                  onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, startDate: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                />
+              </div>
 
                 <div>
                   <label htmlFor="endDate" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
                     End Date
                   </label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    id="endDate"
-                    value={newDailySharedExpense.endDate}
-                    min={tripState.startDate}
-                    max={tripState.endDate}
-                    onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, endDate: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                  />
-                </div>
+                <input
+                  type="date"
+                  name="endDate"
+                  id="endDate"
+                  value={newDailySharedExpense.endDate}
+                  min={formEndDateMin ?? shiftDate(tripState.startDate, 1) ?? tripState.startDate || undefined}
+                  max={tripState.endDate || undefined}
+                  onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, endDate: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                />
               </div>
+            </div>
 
-              {newDailySharedExpense.startDate && newDailySharedExpense.endDate && (
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Total days: {(() => {
-                    const start = new Date(newDailySharedExpense.startDate);
-                    const end = new Date(newDailySharedExpense.endDate);
-                    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                  })()}
-                </div>
-              )}
+            {newDailySharedExpense.startDate && newDailySharedExpense.endDate && (
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                {(() => {
+                  const days = getDayCount(newDailySharedExpense.startDate, newDailySharedExpense.endDate);
+                  return `Total days: ${days}`;
+                })()}
+              </div>
+            )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -625,39 +634,37 @@ export default function ExpensesPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="dailyCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Cost per Day ({newDailySharedExpense.currency})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="dailyCost"
-                    id="dailyCost"
-                    value={(() => {
-                      if (!newDailySharedExpense.startDate || !newDailySharedExpense.endDate || !newDailySharedExpense.totalCost) return '';
-                      const start = new Date(newDailySharedExpense.startDate);
-                      const end = new Date(newDailySharedExpense.endDate);
-                      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                      return (parseFloat(newDailySharedExpense.totalCost) / days).toFixed(2);
-                    })()}
-                    onChange={(e) => {
-                      if (!newDailySharedExpense.startDate || !newDailySharedExpense.endDate) return;
-                      const dailyCost = parseFloat(e.target.value);
-                      if (isNaN(dailyCost)) {
+                <label htmlFor="dailyCost" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Cost per Day ({newDailySharedExpense.currency})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="dailyCost"
+                  id="dailyCost"
+                  value={(() => {
+                    if (!newDailySharedExpense.startDate || !newDailySharedExpense.endDate || !newDailySharedExpense.totalCost) return '';
+                    const days = getDayCount(newDailySharedExpense.startDate, newDailySharedExpense.endDate);
+                    if (days <= 0) return '';
+                    return (parseFloat(newDailySharedExpense.totalCost) / days).toFixed(2);
+                  })()}
+                  onChange={(e) => {
+                    if (!newDailySharedExpense.startDate || !newDailySharedExpense.endDate) return;
+                    const dailyCost = parseFloat(e.target.value);
+                    if (isNaN(dailyCost)) {
                         setNewDailySharedExpense({ 
                           ...newDailySharedExpense, 
-                          totalCost: '' 
-                        });
-                        return;
-                      }
-                      const start = new Date(newDailySharedExpense.startDate);
-                      const end = new Date(newDailySharedExpense.endDate);
-                      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                      setNewDailySharedExpense({ 
-                        ...newDailySharedExpense, 
-                        totalCost: (dailyCost * days).toString()
+                        totalCost: '' 
                       });
-                    }}
+                      return;
+                    }
+                    const days = getDayCount(newDailySharedExpense.startDate, newDailySharedExpense.endDate);
+                    if (days <= 0) return;
+                    setNewDailySharedExpense({ 
+                      ...newDailySharedExpense, 
+                      totalCost: (dailyCost * days).toString()
+                    });
+                  }}
                     placeholder="0.00"
                     className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                   />
@@ -699,11 +706,10 @@ export default function ExpensesPage() {
                     <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{expense.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       {(() => {
-                        const start = new Date(expense.startDate);
-                        const end = new Date(expense.endDate);
-                        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                        const dailyCost = expense.totalCost / days;
-                        return `${expense.totalCost} ${expense.currency} total • ${dailyCost.toFixed(2)} ${expense.currency} per day • ${days} days (${expense.startDate} to ${expense.endDate})`;
+                        const days = getDayCount(expense.startDate, expense.endDate);
+                        const dailyCost = calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate);
+                        const safeDays = days > 0 ? days : 1;
+                        return `${expense.totalCost} ${expense.currency} total • ${dailyCost.toFixed(2)} ${expense.currency} per day • ${safeDays} days (${expense.startDate} → ${expense.endDate} departure)`;
                       })()}
                     </p>
                   </div>
