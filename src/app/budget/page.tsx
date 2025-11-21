@@ -430,57 +430,6 @@ export default function BudgetPage() {
             </p>
           </div>
         </div>
-
-        {/* Cost Summary */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
-            Cost Summary
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                Daily Costs
-              </h3>
-              <div className="mt-2 space-y-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Shared: {formatAmount(dailySharedTotal)} per day
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Personal: {formatAmount(dailyPersonalTotal)} per day
-                </p>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Total: {formatAmount(totalDailyCost)} per day
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                One-time Costs
-              </h3>
-              <div className="mt-2 space-y-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Shared: {formatAmount(oneTimeSharedTotal)}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Personal: {formatAmount(oneTimePersonalTotal)}
-                </p>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Total: {formatAmount(totalOneTimeCost)}
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                Total Cost
-              </h3>
-              <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {formatAmount(totalCost)}
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
