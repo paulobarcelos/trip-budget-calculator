@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { sortTravelers } from "@/utils/tripStateUpdates";
 import { TripState } from "@/types";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -290,7 +291,7 @@ export default function TravelersPage() {
       </form>
 
       <div className="space-y-4">
-        {tripState.travelers.map((traveler) => (
+        {sortTravelers(tripState.travelers).map((traveler) => (
           <div
             key={traveler.id}
             className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700"
