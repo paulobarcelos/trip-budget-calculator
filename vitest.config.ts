@@ -8,11 +8,14 @@ export default defineConfig({
     globals: true,
     exclude: ['**/node_modules/**', '**/tests/e2e/**'],
     coverage: {
+      provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      lines: 70,
-      statements: 70,
-      branches: 70,
-      functions: 70,
+      thresholds: {
+        lines: 70,
+        statements: 70,
+        branches: 70,
+        functions: 70,
+      },
     },
   },
   resolve: {

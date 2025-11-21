@@ -1,7 +1,6 @@
 "use client";
 
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { sortTravelers } from "@/utils/tripStateUpdates";
 import { TripState } from "@/types";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
