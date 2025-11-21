@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . && tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_OPTIONS=--localstorage-file=:memory: vitest run",
+    "test:watch": "NODE_OPTIONS=--localstorage-file=:memory: vitest --watch"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -19,17 +21,28 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4.1.17",
     "@tailwindcss/typography": "^0.5.19",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.10.1",
     "@types/pako": "^2.0.4",
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
+    "@types/testing-library__jest-dom": "^5.14.9",
+    "@vitest/ui": "^4.0.13",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.3",
+    "jsdom": "^27.2.0",
+    "msw": "^2.12.2",
     "postcss": "^8",
     "tailwindcss": "^4.1.17",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.13",
+    "whatwg-fetch": "^3.6.20"
   }
 }
