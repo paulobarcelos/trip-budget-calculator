@@ -70,13 +70,18 @@ export default function ExpensesPage() {
     type: "dailyShared" | "dailyPersonal" | "oneTimeShared" | "oneTimePersonal";
   } | null>(null);
 
+  const [showSplitHelp, setShowSplitHelp] = useState(false);
+
   // Daily Shared Expense form state
   const [newDailySharedExpense, setNewDailySharedExpense] = useState({
     name: "",
     totalCost: "",
+    dailyCost: "",
     startDate: tripState.startDate,
     endDate: tripState.endDate,
     currency: "USD",
+    splitMode: "dailyOccupancy" as "dailyOccupancy" | "stayWeighted",
+    lastEdited: "total" as "total" | "daily",
   });
   const formStartDateMax = useMemo(
     () => shiftDate(newDailySharedExpense.endDate, -1),
@@ -86,6 +91,17 @@ export default function ExpensesPage() {
     () => shiftDate(newDailySharedExpense.startDate, 1),
     [newDailySharedExpense.startDate],
   );
+
+  const dayCountForForm = () =>
+    getDayCount(newDailySharedExpense.startDate, newDailySharedExpense.endDate);
+
+  const derivedDailyCost = () => {
+    const days = dayCountForForm();
+    if (days <= 0) return "";
+    const total = parseFloat(newDailySharedExpense.totalCost);
+    if (Number.isNaN(total)) return "";
+    return (total / days).toFixed(2);
+  };
 
   // Daily Personal Expense form state
   const [newDailyPersonalExpense, setNewDailyPersonalExpense] = useState({
@@ -110,8 +126,14 @@ export default function ExpensesPage() {
 
   const handleAddDailySharedExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     const totalCost = parseFloat(newDailySharedExpense.totalCost);
-    if (isNaN(totalCost)) {
+    const dayCount = getDayCount(
+      newDailySharedExpense.startDate,
+      newDailySharedExpense.endDate,
+    );
+
+    if (Number.isNaN(totalCost)) {
       setError("Please enter a valid cost");
       return;
     }
@@ -126,10 +148,7 @@ export default function ExpensesPage() {
       return;
     }
 
-    if (
-      new Date(newDailySharedExpense.startDate) >=
-      new Date(newDailySharedExpense.endDate)
-    ) {
+    if (dayCount <= 0) {
       setError("End date must be after start date");
       return;
     }
@@ -150,6 +169,7 @@ export default function ExpensesPage() {
       startDate: newDailySharedExpense.startDate,
       endDate: newDailySharedExpense.endDate,
       currency: newDailySharedExpense.currency,
+      splitMode: newDailySharedExpense.splitMode,
     };
 
     setTripState({
@@ -160,9 +180,12 @@ export default function ExpensesPage() {
     setNewDailySharedExpense({
       name: "",
       totalCost: "",
+      dailyCost: "",
       startDate: tripState.startDate,
       endDate: tripState.endDate,
       currency: "USD",
+      splitMode: "dailyOccupancy",
+      lastEdited: "total",
     });
     setError("");
   };
@@ -301,6 +324,12 @@ export default function ExpensesPage() {
 
     if (!expenseToEdit || expenseToEdit.type !== "dailyShared") return;
 
+    const cost = parseFloat(newDailySharedExpense.totalCost);
+    const dayCount = getDayCount(
+      newDailySharedExpense.startDate,
+      newDailySharedExpense.endDate,
+    );
+
     if (
       !newDailySharedExpense.name.trim() ||
       !newDailySharedExpense.totalCost ||
@@ -311,16 +340,12 @@ export default function ExpensesPage() {
       return;
     }
 
-    const cost = parseFloat(newDailySharedExpense.totalCost);
-    if (isNaN(cost) || cost <= 0) {
+    if (Number.isNaN(cost) || cost <= 0) {
       setError("Cost must be a positive number");
       return;
     }
 
-    if (
-      new Date(newDailySharedExpense.startDate) >=
-      new Date(newDailySharedExpense.endDate)
-    ) {
+    if (dayCount <= 0) {
       setError("End date must be after start date");
       return;
     }
@@ -341,6 +366,7 @@ export default function ExpensesPage() {
       startDate: newDailySharedExpense.startDate,
       endDate: newDailySharedExpense.endDate,
       currency: newDailySharedExpense.currency,
+      splitMode: newDailySharedExpense.splitMode,
     };
 
     setTripState({
@@ -353,14 +379,16 @@ export default function ExpensesPage() {
     setNewDailySharedExpense({
       name: "",
       totalCost: "",
+      dailyCost: "",
       startDate: tripState.startDate,
       endDate: tripState.endDate,
       currency: "USD",
+      splitMode: "dailyOccupancy",
+      lastEdited: "total",
     });
     setExpenseToEdit(null);
     setError("");
   };
-
   const handleEditDailyPersonalExpense = (
     e: React.FormEvent<HTMLFormElement>,
   ) => {
@@ -508,13 +536,20 @@ export default function ExpensesPage() {
     switch (type) {
       case "dailyShared":
         const dailyShared = expense as DailySharedExpense;
-        setNewDailySharedExpense({
-          name: dailyShared.name,
-          totalCost: dailyShared.totalCost.toString(),
-          startDate: dailyShared.startDate,
-          endDate: dailyShared.endDate,
-          currency: dailyShared.currency,
-        });
+        {
+          const days = getDayCount(dailyShared.startDate, dailyShared.endDate);
+          const perDay = days > 0 ? dailyShared.totalCost / days : dailyShared.totalCost;
+          setNewDailySharedExpense({
+            name: dailyShared.name,
+            totalCost: dailyShared.totalCost.toString(),
+            dailyCost: perDay.toFixed(2),
+            startDate: dailyShared.startDate,
+            endDate: dailyShared.endDate,
+            currency: dailyShared.currency,
+            splitMode: dailyShared.splitMode ?? "dailyOccupancy",
+            lastEdited: "total",
+          });
+        }
         break;
       case "dailyPersonal":
         const dailyPersonal = expense as DailyPersonalExpense;
@@ -550,9 +585,12 @@ export default function ExpensesPage() {
     setNewDailySharedExpense({
       name: "",
       totalCost: "",
+      dailyCost: "",
       startDate: tripState.startDate,
       endDate: tripState.endDate,
       currency: "USD",
+      splitMode: "dailyOccupancy",
+      lastEdited: "total",
     });
     setNewDailyPersonalExpense({
       name: "",
@@ -660,158 +698,135 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="startDate"
-                    className="block text-sm font-medium text-gray-900 dark:text-gray-100"
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Split mode
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowSplitHelp(!showSplitHelp)}
+                    className="h-5 w-5 rounded-full border border-gray-300 dark:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    aria-label="Explain split modes"
                   >
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    id="startDate"
-                    value={newDailySharedExpense.startDate}
-                    min={tripState.startDate || undefined}
-                    max={formStartDateMax ?? tripState.endDate ?? undefined}
-                    onChange={(e) =>
-                      setNewDailySharedExpense({
-                        ...newDailySharedExpense,
-                        startDate: e.target.value,
-                      })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                  />
+                    ?
+                  </button>
                 </div>
-
-                <div>
-                  <label
-                    htmlFor="endDate"
-                    className="block text-sm font-medium text-gray-900 dark:text-gray-100"
-                  >
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    id="endDate"
-                    value={newDailySharedExpense.endDate}
-                    min={
-                      formEndDateMin ??
-                      shiftDate(tripState.startDate, 1) ??
-                      tripState.startDate ??
-                      undefined
-                    }
-                    max={tripState.endDate || undefined}
-                    onChange={(e) =>
-                      setNewDailySharedExpense({
-                        ...newDailySharedExpense,
-                        endDate: e.target.value,
-                      })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                  />
-                </div>
-              </div>
-
-              {newDailySharedExpense.startDate &&
-                newDailySharedExpense.endDate && (
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {(() => {
-                      const days = getDayCount(
-                        newDailySharedExpense.startDate,
-                        newDailySharedExpense.endDate,
-                      );
-                      return `Total days: ${days}`;
-                    })()}
+                {showSplitHelp && (
+                  <div className="text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3 text-gray-700 dark:text-gray-200">
+                    <p className="font-semibold mb-1">Even-day split</p>
+                    <p className="mb-2">Compute one price per person-day for the whole stay, then each person pays that rate times their total days present.</p>
+                    <p className="font-semibold mb-1">Daily occupancy split</p>
+                    <p>Each day’s cost is split among the people marked present that day; you pay the sum of your daily shares.</p>
                   </div>
                 )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="totalCost"
-                    className="block text-sm font-medium text-gray-900 dark:text-gray-100"
-                  >
-                    Total Cost ({newDailySharedExpense.currency})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="totalCost"
-                    id="totalCost"
-                    value={newDailySharedExpense.totalCost}
-                    onChange={(e) => {
-                      const totalCost = parseFloat(e.target.value);
-                      setNewDailySharedExpense({
-                        ...newDailySharedExpense,
-                        totalCost: isNaN(totalCost) ? "" : e.target.value,
-                      });
-                    }}
-                    placeholder="0.00"
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="dailyCost"
-                    className="block text-sm font-medium text-gray-900 dark:text-gray-100"
-                  >
-                    Cost per Day ({newDailySharedExpense.currency})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="dailyCost"
-                    id="dailyCost"
-                    value={(() => {
-                      if (
-                        !newDailySharedExpense.startDate ||
-                        !newDailySharedExpense.endDate ||
-                        !newDailySharedExpense.totalCost
-                      )
-                        return "";
-                      const days = getDayCount(
-                        newDailySharedExpense.startDate,
-                        newDailySharedExpense.endDate,
-                      );
-                      if (days <= 0) return "";
-                      return (
-                        parseFloat(newDailySharedExpense.totalCost) / days
-                      ).toFixed(2);
-                    })()}
-                    onChange={(e) => {
-                      if (
-                        !newDailySharedExpense.startDate ||
-                        !newDailySharedExpense.endDate
-                      )
-                        return;
-                      const dailyCost = parseFloat(e.target.value);
-                      if (isNaN(dailyCost)) {
+                <div className="flex gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="radio"
+                      name="splitMode"
+                      value="stayWeighted"
+                      checked={newDailySharedExpense.splitMode === "stayWeighted"}
+                      onChange={() =>
                         setNewDailySharedExpense({
                           ...newDailySharedExpense,
-                          totalCost: "",
-                        });
-                        return;
+                          splitMode: "stayWeighted",
+                        })
                       }
-                      const days = getDayCount(
-                        newDailySharedExpense.startDate,
-                        newDailySharedExpense.endDate,
-                      );
-                      if (days <= 0) return;
-                      setNewDailySharedExpense({
-                        ...newDailySharedExpense,
-                        totalCost: (dailyCost * days).toString(),
-                      });
-                    }}
-                    placeholder="0.00"
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                  />
+                      className="h-4 w-4 text-primary-600 border-gray-300 dark:border-gray-600 focus:ring-primary-500"
+                    />
+                    Even-day split
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="radio"
+                      name="splitMode"
+                      value="dailyOccupancy"
+                      checked={newDailySharedExpense.splitMode === "dailyOccupancy"}
+                      onChange={() =>
+                        setNewDailySharedExpense({
+                          ...newDailySharedExpense,
+                          splitMode: "dailyOccupancy",
+      lastEdited: "total",
+                        })
+                      }
+                      className="h-4 w-4 text-primary-600 border-gray-300 dark:border-gray-600 focus:ring-primary-500"
+                    />
+                    Daily occupancy split
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="totalCost"
+                      className="block text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >
+                      Total Cost ({newDailySharedExpense.currency})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="totalCost"
+                      id="totalCost"
+                      value={newDailySharedExpense.totalCost}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const totalCost = parseFloat(raw);
+                        const days = dayCountForForm();
+                        const derivedDaily =
+                          !Number.isNaN(totalCost) && days > 0
+                            ? (totalCost / days).toFixed(2)
+                            : "";
+                        setNewDailySharedExpense({
+                          ...newDailySharedExpense,
+                          totalCost: Number.isNaN(totalCost) ? "" : raw,
+                          dailyCost: derivedDaily,
+                          lastEdited: "total",
+                        });
+                      }}
+                      placeholder="0.00"
+                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="dailyCost"
+                      className="block text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >
+                      Cost per Day ({newDailySharedExpense.currency})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="dailyCost"
+                      id="dailyCost"
+                      value={
+                        newDailySharedExpense.lastEdited === "daily"
+                          ? newDailySharedExpense.dailyCost
+                          : derivedDailyCost()
+                      }
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const dailyCost = parseFloat(raw);
+                        const days = dayCountForForm();
+                        const total =
+                          !Number.isNaN(dailyCost) && days > 0
+                            ? (dailyCost * days).toFixed(2)
+                            : "";
+                        setNewDailySharedExpense({
+                          ...newDailySharedExpense,
+                          dailyCost: Number.isNaN(dailyCost) ? "" : raw,
+                          totalCost: total,
+                          lastEdited: "daily",
+                        });
+                      }}
+                      placeholder="0.00"
+                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                    />
+                  </div>
                 </div>
               </div>
-
               <div className="flex gap-2">
                 <CurrencySelect
                   value={newDailySharedExpense.currency}
@@ -866,7 +881,11 @@ export default function ExpensesPage() {
                           expense.endDate,
                         );
                         const safeDays = days > 0 ? days : 1;
-                        return `${expense.totalCost} ${expense.currency} total • ${dailyCost.toFixed(2)} ${expense.currency} per day • ${safeDays} days (${expense.startDate} → ${expense.endDate} departure)`;
+                        const modeText =
+                          expense.splitMode === "stayWeighted"
+                            ? "Even-day split"
+                            : "Daily occupancy split";
+                        return `${modeText} • ${expense.totalCost} ${expense.currency} total • ${dailyCost.toFixed(2)} ${expense.currency} per day • ${safeDays} days (${expense.startDate} → ${expense.endDate})`;
                       })()}
                     </p>
                   </div>

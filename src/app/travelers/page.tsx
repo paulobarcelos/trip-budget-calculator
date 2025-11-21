@@ -144,15 +144,62 @@ export default function TravelersPage() {
   };
 
   const handleRemoveTraveler = (travelerId: string) => {
-    // First update the traveler's dates to null to clean up their usage entries
-    const cleanedState = updateTravelerDates(tripState, travelerId, null, null);
+    const validTravelerIds = new Set(
+      tripState.travelers.filter((t) => t.id !== travelerId).map((t) => t.id),
+    );
 
-    // Then remove the traveler
+    const cleanedDays = Object.fromEntries(
+      Object.entries(tripState.usageCosts.days).map(([dayId, daily]) => {
+        const dailyShared = Object.fromEntries(
+          Object.entries(daily.dailyShared)
+            .map(([expenseId, ids]) => [
+              expenseId,
+              ids.filter((id) => validTravelerIds.has(id)),
+            ])
+            .filter(([, ids]) => ids.length > 0),
+        );
+
+        const dailyPersonal = Object.fromEntries(
+          Object.entries(daily.dailyPersonal)
+            .map(([expenseId, ids]) => [
+              expenseId,
+              ids.filter((id) => validTravelerIds.has(id)),
+            ])
+            .filter(([, ids]) => ids.length > 0),
+        );
+
+        return [dayId, { dailyShared, dailyPersonal }];
+      }),
+    );
+
+    const cleanedOneTimeShared = Object.fromEntries(
+      Object.entries(tripState.usageCosts.oneTimeShared)
+        .map(([expenseId, ids]) => [
+          expenseId,
+          ids.filter((id) => validTravelerIds.has(id)),
+        ])
+        .filter(([, ids]) => ids.length > 0),
+    );
+
+    const cleanedOneTimePersonal = Object.fromEntries(
+      Object.entries(tripState.usageCosts.oneTimePersonal)
+        .map(([expenseId, ids]) => [
+          expenseId,
+          ids.filter((id) => validTravelerIds.has(id)),
+        ])
+        .filter(([, ids]) => ids.length > 0),
+    );
+
     setTripState({
-      ...cleanedState,
+      ...tripState,
       travelers: sortTravelers(
-        cleanedState.travelers.filter((t) => t.id !== travelerId),
+        tripState.travelers.filter((t) => t.id !== travelerId),
       ),
+      usageCosts: {
+        oneTimeShared: cleanedOneTimeShared,
+        oneTimePersonal: cleanedOneTimePersonal,
+        days: cleanedDays,
+      },
     });
   };
 

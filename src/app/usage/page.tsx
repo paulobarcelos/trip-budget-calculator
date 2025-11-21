@@ -218,7 +218,11 @@ export default function UsagePage() {
                                           expense.startDate,
                                           expense.endDate,
                                         );
-                                        return `${dailyCost.toFixed(2)} ${expense.currency} per day (${expense.totalCost} ${expense.currency} total over ${days} days)`;
+                                        const modeText =
+                                          expense.splitMode === "stayWeighted"
+                                            ? "Even-day split"
+                                            : "Daily occupancy split";
+                                        return `${modeText} • ${dailyCost.toFixed(2)} ${expense.currency} per day (${expense.totalCost} ${expense.currency} total over ${days} days)`;
                                       })()}
                                     </p>
                                   </div>

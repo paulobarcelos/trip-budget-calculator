@@ -48,8 +48,12 @@ const sanitizeDailySharedExpenses = (value: unknown): DailySharedExpense[] => {
       const totalCost = toNumber(expense.totalCost);
       const startDate = toString(expense.startDate);
       const endDate = toString(expense.endDate);
+      const splitMode =
+        expense.splitMode === "stayWeighted"
+          ? "stayWeighted"
+          : "dailyOccupancy";
       if (!id || !name || !currency || totalCost === null || !startDate || !endDate) return null;
-      return { id, name, currency, totalCost, startDate, endDate };
+      return { id, name, currency, totalCost, startDate, endDate, splitMode };
     })
     .filter((expense): expense is DailySharedExpense => expense !== null);
 };
@@ -172,6 +176,44 @@ const sanitizeUsageCosts = (value: unknown): UsageCosts => {
   return base;
 };
 
+const pruneUsageToTravelers = (
+  usage: UsageCosts,
+  validTravelerIds: Set<string>,
+): UsageCosts => {
+  const oneTimeShared: Record<string, string[]> = {};
+  const oneTimePersonal: Record<string, string[]> = {};
+  const days: Record<string, DailyExpenses> = {};
+
+  Object.entries(usage.oneTimeShared).forEach(([expenseId, ids]) => {
+    const filtered = ids.filter((id) => validTravelerIds.has(id));
+    if (filtered.length) oneTimeShared[expenseId] = filtered;
+  });
+
+  Object.entries(usage.oneTimePersonal).forEach(([expenseId, ids]) => {
+    const filtered = ids.filter((id) => validTravelerIds.has(id));
+    if (filtered.length) oneTimePersonal[expenseId] = filtered;
+  });
+
+  Object.entries(usage.days).forEach(([dayId, daily]) => {
+    const dailyShared: Record<string, string[]> = {};
+    const dailyPersonal: Record<string, string[]> = {};
+
+    Object.entries(daily.dailyShared).forEach(([expenseId, ids]) => {
+      const filtered = ids.filter((id) => validTravelerIds.has(id));
+      if (filtered.length) dailyShared[expenseId] = filtered;
+    });
+
+    Object.entries(daily.dailyPersonal).forEach(([expenseId, ids]) => {
+      const filtered = ids.filter((id) => validTravelerIds.has(id));
+      if (filtered.length) dailyPersonal[expenseId] = filtered;
+    });
+
+    days[dayId] = { dailyShared, dailyPersonal };
+  });
+
+  return { oneTimeShared, oneTimePersonal, days };
+};
+
 export function migrateState(raw: unknown): TripState {
   const base: TripState = {
     ...initialTripState,
@@ -199,7 +241,7 @@ export function migrateState(raw: unknown): TripState {
 
   const migrated: TripState = {
     ...base,
-    version: version ?? TripStateVersion,
+    version: TripStateVersion,
     startDate: startDate ?? base.startDate,
     endDate: endDate ?? base.endDate,
     travelers: sanitizeTravelers(raw.travelers),
@@ -211,6 +253,9 @@ export function migrateState(raw: unknown): TripState {
     usageCosts: sanitizeUsageCosts(raw.usageCosts),
     displayCurrency: displayCurrency ?? base.displayCurrency,
   };
+
+  const travelerIds = new Set(migrated.travelers.map((t) => t.id));
+  migrated.usageCosts = pruneUsageToTravelers(migrated.usageCosts, travelerIds);
 
   // Future migrations would be chained here based on migrated.version.
   migrated.version = TripStateVersion;

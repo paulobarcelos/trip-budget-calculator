@@ -11,10 +11,13 @@ export interface BaseExpense {
   currency: string;
 }
 
+export type DailySharedSplitMode = "dailyOccupancy" | "stayWeighted";
+
 export interface DailySharedExpense extends BaseExpense {
   totalCost: number;
   startDate: string;
   endDate: string;
+  splitMode: DailySharedSplitMode;
 }
 
 export interface DailyPersonalExpense extends BaseExpense {

@@ -196,40 +196,58 @@ export default function BudgetPage() {
     travelerCosts.set(traveler.id, createTravelerCostBreakdown());
   });
 
-  Object.entries(tripState.usageCosts.days).forEach(([, dailyExpenses]) => {
-    Object.entries(dailyExpenses.dailyShared).forEach(
-      ([expenseId, travelerIds]) => {
-        const expense = tripState.dailySharedExpenses.find(
-          (e) => e.id === expenseId,
-        );
-        if (!expense || travelerIds.length === 0) return;
+    tripState.dailySharedExpenses.forEach((expense) => {
+    const isPersonNight = expense.splitMode === "stayWeighted";
 
-        const dailyCost = calculateDailyCost(
-          expense.totalCost,
-          expense.startDate,
-          expense.endDate,
-          expense.currency,
-        );
+    if (isPersonNight) {
+      const nights = new Map<string, number>();
+
+      Object.entries(tripState.usageCosts.days).forEach(([dayId, dailyExpenses]) => {
+        if (dayId < expense.startDate || dayId >= expense.endDate) return;
+        const travelerIds = dailyExpenses.dailyShared[expense.id] ?? [];
+        travelerIds.forEach((travelerId) => {
+          nights.set(travelerId, (nights.get(travelerId) ?? 0) + 1);
+        });
+      });
+
+      const totalNights = Array.from(nights.values()).reduce((sum, n) => sum + n, 0);
+      if (totalNights === 0) return;
+
+      const convertedTotal = convertAmount(expense.totalCost, expense.currency);
+      const perNight = convertedTotal.amount / totalNights;
+
+      nights.forEach((count, travelerId) => {
+        const costs = travelerCosts.get(travelerId);
+        if (!costs) return;
+        const share = perNight * count;
+        addAmountWithFlag(costs.shared.daily, share, convertedTotal.isApproximate);
+        addAmountWithFlag(costs.total, share, convertedTotal.isApproximate);
+      });
+    } else {
+      const dailyCost = calculateDailyCost(
+        expense.totalCost,
+        expense.startDate,
+        expense.endDate,
+        expense.currency,
+      );
+
+      Object.entries(tripState.usageCosts.days).forEach(([dayId, dailyExpenses]) => {
+        if (dayId < expense.startDate || dayId >= expense.endDate) return;
+        const travelerIds = dailyExpenses.dailyShared[expense.id] ?? [];
+        if (travelerIds.length === 0) return;
         const costPerPerson = dailyCost.amount / travelerIds.length;
 
         travelerIds.forEach((travelerId) => {
           const costs = travelerCosts.get(travelerId);
           if (!costs) return;
-
-          addAmountWithFlag(
-            costs.shared.daily,
-            costPerPerson,
-            dailyCost.isApproximate,
-          );
-          addAmountWithFlag(
-            costs.total,
-            costPerPerson,
-            dailyCost.isApproximate,
-          );
+          addAmountWithFlag(costs.shared.daily, costPerPerson, dailyCost.isApproximate);
+          addAmountWithFlag(costs.total, costPerPerson, dailyCost.isApproximate);
         });
-      },
-    );
+      });
+    }
+  });
 
+  Object.entries(tripState.usageCosts.days).forEach(([, dailyExpenses]) => {
     Object.entries(dailyExpenses.dailyPersonal).forEach(
       ([expenseId, travelerIds]) => {
         const expense = tripState.dailyPersonalExpenses.find(
