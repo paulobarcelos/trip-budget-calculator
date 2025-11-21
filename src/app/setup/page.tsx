@@ -2,15 +2,25 @@
 
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TripState } from "@/types";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { initialTripState } from "@/constants/initialState";
 import { updateTripDates } from "@/utils/tripStateUpdates";
 import { Instructions } from "@/components/Instructions";
 import { instructions } from "./instructions";
-import { shiftDate } from "@/utils/dateMath";
 import { migrateState } from "@/utils/stateMigrations";
 import { decodeState } from "@/utils/stateEncoding";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
+import { addDays, format, parseISO } from "date-fns";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -22,132 +32,116 @@ export default function SetupPage() {
       decodeFromUrl: decodeState,
     },
   );
-  const [formState, setFormState] = useState(() => ({
-    startDate: initialTripState.startDate,
-    endDate: initialTripState.endDate,
-  }));
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [error, setError] = useState<string | null>(null);
 
   // Initialize form state from tripState only once when isInitialized becomes true
   useEffect(() => {
     if (isInitialized && tripState) {
-      // Sync persisted trip state into the form once storage has loaded.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormState({
-        startDate: tripState.startDate,
-        endDate: tripState.endDate,
-      });
-    }
-  }, [isInitialized, tripState]); // Only run when isInitialized changes
+      if (tripState.startDate && tripState.endDate) {
+        const newFrom = parseISO(tripState.startDate);
+        const newTo = parseISO(tripState.endDate);
 
-  // Handle form changes and update trip state
-  const handleFormChange = (changes: Partial<typeof formState>) => {
-    setFormState((prev) => {
-      const newState = { ...prev, ...changes };
-
-      // Only update trip state if we have all required values
-      if (isInitialized && newState.startDate && newState.endDate) {
-        if (newState.startDate >= newState.endDate) {
-          setError("End date must be later than the start date.");
-          return newState;
+        if (
+          !dateRange?.from ||
+          !dateRange?.to ||
+          newFrom.getTime() !== dateRange.from.getTime() ||
+          newTo.getTime() !== dateRange.to.getTime()
+        ) {
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+          setDateRange({
+            from: newFrom,
+            to: newTo,
+          });
         }
-        setError(null);
-        const updatedTripState = updateTripDates(
-          tripState,
-          newState.startDate,
-          newState.endDate,
-        );
-        setTripState(updatedTripState);
       }
+    }
+  }, [isInitialized, tripState, dateRange]);
 
-      return newState;
-    });
+  const handleDateChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+
+    if (range?.from && range?.to) {
+      const startDate = format(range.from, "yyyy-MM-dd");
+      const endDate = format(range.to, "yyyy-MM-dd");
+
+      // Check if end date is same as start date (1 day trip) or later
+      // The DateRange picker allows selecting same day as start and end
+
+      const updatedTripState = updateTripDates(
+        tripState,
+        startDate,
+        endDate,
+      );
+      setTripState(updatedTripState);
+      setError(null);
+    }
   };
-
-  const startDateMax = useMemo(
-    () => shiftDate(formState.endDate, -1) ?? undefined,
-    [formState.endDate],
-  );
-  const endDateMin = useMemo(
-    () => shiftDate(formState.startDate, 1) ?? undefined,
-    [formState.startDate],
-  );
 
   if (!isInitialized) {
     return (
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
           Setup Trip
         </h1>
-        <Instructions text={instructions} />
-        <div className="animate-pulse">
-          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
-          <div className="space-y-4">
-            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          </div>
+        <div className="animate-pulse space-y-4">
+          <div className="h-32 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+          <div className="h-64 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
-        Setup Trip
-      </h1>
-      <Instructions text={instructions} />
-      <div className="space-y-6">
-        {error && (
-          <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-300">
-            {error}
-          </div>
-        )}
-        <div>
-          <label
-            htmlFor="startDate"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Start Date
-          </label>
-          <input
-            type="date"
-            name="startDate"
-            id="startDate"
-            required
-            value={formState.startDate}
-            onChange={(e) => handleFormChange({ startDate: e.target.value })}
-            max={startDateMax}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="endDate"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            End Date
-          </label>
-          <input
-            type="date"
-            name="endDate"
-            id="endDate"
-            required
-            value={formState.endDate}
-            onChange={(e) => handleFormChange({ endDate: e.target.value })}
-            min={endDateMin}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100 sm:text-sm"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => router.push("/travelers")}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
-        >
-          Continue to Travelers
-        </button>
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+          Setup Trip
+        </h1>
+        <p className="text-muted-foreground">
+          Define the duration of your trip to get started.
+        </p>
       </div>
+
+      <Instructions text={instructions} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Trip Duration</CardTitle>
+          <CardDescription>
+            Select the start and end dates for your trip.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {error && (
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col space-y-2">
+            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Trip Dates
+            </label>
+            <DatePickerWithRange
+              date={dateRange}
+              onDateChange={handleDateChange}
+              className="w-full sm:w-[300px]"
+            />
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => router.push("/travelers")}
+              disabled={!dateRange?.from || !dateRange?.to}
+              className="w-full sm:w-auto"
+            >
+              Continue to Travelers
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

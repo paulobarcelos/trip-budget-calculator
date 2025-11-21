@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/hooks/useLocalStorage', () => {
   const React = require('react');
   return {
-    useLocalStorage: () => React.useState(tripState).concat(true) as const,
+    useLocalStorage: () => React.useState(tripState).concat(true) as any,
   };
 });
 
