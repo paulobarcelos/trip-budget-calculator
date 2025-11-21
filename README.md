@@ -17,6 +17,15 @@ npm run dev
 Open http://localhost:3000 and step through:
 1) Setup dates, 2) Add travelers, 3) Add expenses, 4) (Optional) Mark usage, 5) View budget.
 
+## Testing & Quality
+- `npm run lint` — ESLint + `tsc --noEmit`
+- `npm run test` — Vitest unit/component/integration (jsdom); uses in-memory localStorage (`NODE_OPTIONS=--localstorage-file=:memory:`) and msw handlers in `src/test/msw`
+- `npx playwright test` — Playwright smoke/e2e; requires dev server running separately. Override target with `PLAYWRIGHT_BASE_URL=http://localhost:3000 npx playwright test`
+
+## CI
+- `.github/workflows/ci.yml` — lint + vitest
+- `.github/workflows/e2e.yml` — build, start Next.js, run Playwright (triggered on PR paths or manually)
+
 ## Project Structure
 - `src/app` – Next.js App Router pages (setup, travelers, expenses, usage, budget)
 - `src/providers` – cross-cutting React providers (display currency)
