@@ -101,6 +101,8 @@
 2. Keep tests minimal/time-boxed (<2m).
 3. Run locally: `npx playwright test tests/e2e/happy-path.spec.ts` (optional gate in CI later).
 
+> Note: Current repo includes only a smoke scaffold (home page load + nav). Expand to the two happy-path flows (create trip, add travelers/expenses/usage, budget check; export/import) after core unit/component coverage and docs/CI are finalized.
+
 ### Task 8: Documentation & CI Hooks
 
 **Files:**
