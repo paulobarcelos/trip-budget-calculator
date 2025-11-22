@@ -61,18 +61,24 @@ describe('UsagePage daily shared section', () => {
     tripState = structuredClone(baseTripState);
   });
 
-  it('shows split mode label and allows toggling travelers', () => {
+  it('shows expense details and allows toggling travelers', async () => {
     renderWithProviders(<UsagePage />);
 
-    expect(screen.getByText(/Even-day split/i)).toBeInTheDocument();
+    // Click on the day button to open the sheet
+    fireEvent.click(screen.getByText('Jan 1'));
+
+    // Wait for sheet to open
+    await screen.findByText('Hotel');
+
+    // expect(screen.getByText(/Even-day split/i)).toBeInTheDocument(); // Removed from UI
 
     const alice = screen.getByLabelText('Alice') as HTMLInputElement;
     const bob = screen.getByLabelText('Bob') as HTMLInputElement;
 
-    expect(alice.checked).toBe(true);
-    expect(bob.checked).toBe(false);
+    expect(alice).toBeChecked();
+    expect(bob).not.toBeChecked();
 
     fireEvent.click(bob);
-    expect(bob.checked).toBe(true);
+    expect(bob).toBeChecked();
   });
 });

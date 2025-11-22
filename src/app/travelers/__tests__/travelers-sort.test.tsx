@@ -19,6 +19,37 @@ vi.mock('@/hooks/useLocalStorage', () => {
   };
 });
 
+vi.mock('@/components/ui/date-range-picker', () => ({
+  DatePickerWithRange: ({ date, onDateChange }: any) => (
+    <div>
+      <label>
+        Start Date
+        <input
+          value={date?.from ? date.from.toISOString().split('T')[0] : ''}
+          onChange={(e) =>
+            onDateChange({
+              from: new Date(e.target.value),
+              to: date?.to,
+            })
+          }
+        />
+      </label>
+      <label>
+        End Date
+        <input
+          value={date?.to ? date.to.toISOString().split('T')[0] : ''}
+          onChange={(e) =>
+            onDateChange({
+              from: date?.from,
+              to: new Date(e.target.value),
+            })
+          }
+        />
+      </label>
+    </div>
+  ),
+}));
+
 describe('TravelersPage sorting', () => {
   beforeEach(() => {
     tripState = {
@@ -38,16 +69,19 @@ describe('TravelersPage sorting', () => {
     expect(initialNames).toEqual(['Ada', 'Zed']);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Traveler/i }));
-    fireEvent.change(screen.getByLabelText(/^Name$/i), {
+
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(within(dialog).getByLabelText(/^Name$/i), {
       target: { value: 'Ben' },
     });
-    fireEvent.change(screen.getByLabelText(/^Start Date$/i), {
+    fireEvent.change(within(dialog).getByLabelText(/^Start Date$/i), {
       target: { value: '2024-01-01' },
     });
-    fireEvent.change(screen.getByLabelText(/^End Date$/i), {
+    fireEvent.change(within(dialog).getByLabelText(/^End Date$/i), {
       target: { value: '2024-01-05' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Add Traveler/i }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /Add Traveler/i }));
 
     const updatedNames = screen
       .getAllByDisplayValue(/Ada|Ben|Zed/)

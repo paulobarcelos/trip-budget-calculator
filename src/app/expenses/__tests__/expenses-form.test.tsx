@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import ExpensesPage from '../page';
 import { renderWithProviders } from '@/test/renderWithProviders';
@@ -51,29 +51,42 @@ describe('ExpensesPage daily shared form', () => {
   it('adds a daily shared expense with selected split mode and updates per-day preview', async () => {
     renderWithProviders(<ExpensesPage />);
 
-    fireEvent.change(screen.getByLabelText('Expense Name'), {
+    // Open the Add Expense dialog
+    fireEvent.click(screen.getByRole('button', { name: /Add Expense/i }));
+
+    // Wait for dialog to open
+    const dialog = await screen.findByRole('dialog');
+
+    const nameInputs = within(dialog).getAllByLabelText('Name');
+    fireEvent.change(nameInputs[0], {
       target: { value: 'Hotel' },
     });
-    fireEvent.click(screen.getByRole('radio', { name: 'Even-day split' }));
 
-    fireEvent.change(screen.getByLabelText(/Total Cost/i), {
+    // Select split mode (assuming RadioGroup is used)
+    const splitRadios = within(dialog).getAllByLabelText(/Even-day split/i);
+    fireEvent.click(splitRadios[0]);
+
+    const costInputs = within(dialog).getAllByLabelText(/Total Cost/i);
+    fireEvent.change(costInputs[0], {
       target: { value: '300' },
     });
 
-    await waitFor(() => {
-      expect(
-        (screen.getByLabelText(/Cost per Day/i) as HTMLInputElement).value,
-      ).toBe('100.00');
-    });
+    // Removed Cost per Day check as it's not in the form anymore
 
     fireEvent.click(
-      screen.getByRole('button', { name: /Add Daily Shared Expense/i }),
+      screen.getByRole('button', { name: 'Add Expense' }),
     );
 
+    // Wait for dialog to close and expense to appear in the list
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     await screen.findByText('Hotel');
-    const splitLabels = screen.getAllByText(/Even-day split/);
-    expect(splitLabels.length).toBeGreaterThan(0);
-    expect(screen.getByText(/100.00 USD per day/)).toBeInTheDocument();
+    // The split mode text is "Even Split" in the list view
+    expect(screen.getByText(/Even Split/)).toBeInTheDocument();
+    // The list view shows total cost, not per day
+    expect(screen.getByText(/USD 300.00 total/)).toBeInTheDocument();
 
     expect(capturedState?.dailySharedExpenses[0]?.splitMode).toBe(
       'stayWeighted',

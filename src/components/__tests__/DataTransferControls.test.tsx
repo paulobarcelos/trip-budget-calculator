@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { DataTransferControls } from '../DataTransferControls';
 import { TripState } from '@/types';
@@ -32,22 +33,30 @@ describe('DataTransferControls', () => {
     capturedState = null;
   });
 
-  it('exports JSON when clicking Export JSON', async () => {
+  it('exports JSON when clicking Save to file', async () => {
+    const user = userEvent.setup();
     const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click');
     render(<DataTransferControls />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Export JSON/i }));
+    await user.click(screen.getByRole('button', { name: /Data Settings/i }));
+    await user.click(await screen.findByText(/Save to file/i));
 
     await waitFor(() => expect(clickMock).toHaveBeenCalled());
     clickMock.mockRestore();
   });
 
   it('copies shareable link including encoded data', async () => {
+    const user = userEvent.setup();
     const writeText = vi.fn();
-    (navigator as any).clipboard = { writeText };
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+    });
 
     render(<DataTransferControls />);
-    fireEvent.click(screen.getByRole('button', { name: /Copy Shareable Link/i }));
+
+    await user.click(screen.getByRole('button', { name: /Data Settings/i }));
+    await user.click(await screen.findByText(/Share Link/i));
 
     await waitFor(() => expect(writeText).toHaveBeenCalled());
     const copied = writeText.mock.calls[0][0] as string;

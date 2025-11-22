@@ -14,6 +14,24 @@ import { instructions } from "./instructions";
 import { getDayCount } from "@/utils/tripStateUpdates";
 import { decodeState } from "@/utils/stateEncoding";
 import { calculateDailySharedAllocations } from "@/utils/dailySharedSplit";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 
 type CurrencyTotal = {
   amount: number;
@@ -85,16 +103,13 @@ export default function BudgetPage() {
 
   if (!isInitialized || isLoading || !exchangeRates) {
     return (
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
           Budget Summary
         </h1>
-        <Instructions text={instructions} />
-        <div className="animate-pulse">
-          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
-          <div className="space-y-4">
-            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          </div>
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </div>
       </div>
     );
@@ -312,113 +327,98 @@ export default function BudgetPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
-        Budget Summary
-      </h1>
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+          Budget Summary
+        </h1>
+        <p className="text-muted-foreground">
+          Review the cost breakdown per traveler and the total trip budget.
+        </p>
+      </div>
+
       <Instructions text={instructions} />
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-4">
-          <label
-            htmlFor="currency"
-            className="text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
+
+      <div className="flex justify-end items-center">
+        <div className="flex items-center gap-3">
+          <Label htmlFor="currency" className="whitespace-nowrap">
             View in
-          </label>
-          <select
-            id="currency"
+          </Label>
+          <Select
             value={displayCurrency}
-            onChange={(e) => setDisplayCurrency(e.target.value)}
-            className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+            onValueChange={setDisplayCurrency}
           >
-            {currencies.map((currency) => (
-              <option key={currency.code} value={currency.code}>
-                {currency.code}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select currency" />
+            </SelectTrigger>
+            <SelectContent>
+              {currencies.map((currency) => (
+                <SelectItem key={currency.code} value={currency.code}>
+                  {currency.code} - {currency.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="space-y-8">
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {tripState.travelers.map((traveler) => {
-              const costs = travelerCosts.get(traveler.id)!;
-              return (
-                <div key={traveler.id} className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                    {traveler.name}
-                  </h3>
-
-                  {/* Shared Expenses */}
+      <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2">
+          {tripState.travelers.map((traveler) => {
+            const costs = travelerCosts.get(traveler.id)!;
+            return (
+              <Card key={traveler.id} className="flex flex-col">
+                <CardHeader>
+                  <CardTitle>{traveler.name}</CardTitle>
+                  <CardDescription>Cost Breakdown</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-4">
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Daily Shared
-                      </p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.shared.daily)}
-                      </p>
+                    <h4 className="text-sm font-medium leading-none">Shared Expenses</h4>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Daily</span>
+                      <span>{formatAmount(costs.shared.daily)}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        One-time Shared
-                      </p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.shared.oneTime)}
-                      </p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">One-time</span>
+                      <span>{formatAmount(costs.shared.oneTime)}</span>
                     </div>
                   </div>
-
-                  {/* Personal Expenses */}
-                  <div className="space-y-2 mt-4">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Daily Personal
-                      </p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.personal.daily)}
-                      </p>
+                  <Separator />
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium leading-none">Personal Expenses</h4>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Daily</span>
+                      <span>{formatAmount(costs.personal.daily)}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        One-time Personal
-                      </p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.personal.oneTime)}
-                      </p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">One-time</span>
+                      <span>{formatAmount(costs.personal.oneTime)}</span>
                     </div>
                   </div>
-
-                  {/* Total */}
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-between items-center">
-                      <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        Total
-                      </p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                        {formatAmount(costs.total)}
-                      </p>
-                    </div>
+                </CardContent>
+                <CardFooter className="bg-muted/50 pt-6">
+                  <div className="flex w-full justify-between items-center">
+                    <span className="font-semibold">Total</span>
+                    <span className="text-lg font-bold">{formatAmount(costs.total)}</span>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
 
-        {/* Grand Total */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              Grand Total
-            </h2>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-xl">Grand Total</CardTitle>
+            <CardDescription>Total estimated cost for the entire trip</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-primary">
               {formatAmount(grandTotal)}
-            </p>
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

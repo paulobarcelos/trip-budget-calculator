@@ -334,6 +334,7 @@ export default function TravelersPage() {
                   size="icon"
                   className="text-muted-foreground hover:text-destructive"
                   onClick={() => setTravelerToDelete({ id: traveler.id, name: traveler.name })}
+                  aria-label="Remove"
                 >
                   <Trash2 className="h-5 w-5" />
                 </Button>
