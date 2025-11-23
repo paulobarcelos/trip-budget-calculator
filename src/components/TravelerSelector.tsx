@@ -41,6 +41,7 @@ export function TravelerSelector({
     const handleSelect = (travelerId: string) => {
         const isSelected = selectedTravelerIds.includes(travelerId)
         onToggleTraveler(travelerId, !isSelected)
+        setInputValue("")
     }
 
     const handleCreate = () => {
