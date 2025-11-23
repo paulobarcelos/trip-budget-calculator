@@ -2,7 +2,6 @@
 
 @plugin "tailwindcss-animate";
 @import "tailwindcss";
-@import "@heroui/react/styles.css";
 
 
 @custom-variant dark (&:is(.dark *));
