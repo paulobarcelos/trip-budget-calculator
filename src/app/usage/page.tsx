@@ -5,7 +5,7 @@ import { TripState, Day } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { initialTripState } from "@/constants/initialState";
-import { calculateDailyCost, getDayCount } from "@/utils/tripStateUpdates";
+import { calculateDailyCost, getDayCount, sortTravelers } from "@/utils/tripStateUpdates";
 import { Instructions } from "@/components/Instructions";
 import { instructions } from "./instructions";
 import { migrateState } from "@/utils/stateMigrations";
@@ -37,6 +37,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, parseISO, isSameDay } from "date-fns";
 import { CalendarDays, Check, Copy, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TravelerSelector } from "@/components/TravelerSelector";
 
 export default function UsagePage() {
   const router = useRouter();
@@ -184,6 +185,45 @@ export default function UsagePage() {
           [type]: {
             ...prev.usageCosts[type],
             [expenseId]: newList,
+          },
+        },
+      };
+    });
+  };
+
+  const handleCreateTraveler = (
+    name: string,
+    dayId: string,
+    type: "dailyShared" | "dailyPersonal",
+    expenseId: string
+  ) => {
+    const newTraveler = {
+      id: crypto.randomUUID(),
+      name,
+      startDate: tripState.startDate,
+      endDate: tripState.endDate,
+    };
+
+    setTripState((prev) => {
+      const updatedTravelers = sortTravelers([...prev.travelers, newTraveler]);
+
+      const currentList = prev.usageCosts.days[dayId]?.[type]?.[expenseId] ?? [];
+      const newList = [...currentList, newTraveler.id];
+
+      return {
+        ...prev,
+        travelers: updatedTravelers,
+        usageCosts: {
+          ...prev.usageCosts,
+          days: {
+            ...prev.usageCosts.days,
+            [dayId]: {
+              ...(prev.usageCosts.days[dayId] ?? {}),
+              [type]: {
+                ...(prev.usageCosts.days[dayId]?.[type] ?? {}),
+                [expenseId]: newList,
+              },
+            },
           },
         },
       };
@@ -387,7 +427,7 @@ export default function UsagePage() {
       </div>
 
       <Sheet open={selectedDay !== null} onOpenChange={(open) => !open && setSelectedDay(null)}>
-        <SheetContent className="w-[400px] sm:w-[540px]">
+        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>
               {selectedDay && format(parseISO(selectedDay.date), "EEEE, MMMM d, yyyy")}
@@ -398,104 +438,98 @@ export default function UsagePage() {
           </SheetHeader>
 
           {selectedDay && (
-            <ScrollArea className="h-[calc(100vh-10rem)] mt-6 pr-4">
-              <div className="space-y-8">
-                {/* Copy Button */}
-                {tripState.days.findIndex(d => d.id === selectedDay.id) > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => handleCopyFromPreviousDay(tripState.days.findIndex(d => d.id === selectedDay.id))}
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy from previous day
-                  </Button>
-                )}
+            <div className="mt-6 space-y-8 pb-10">
+              {/* Copy Button */}
+              {tripState.days.findIndex(d => d.id === selectedDay.id) > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => handleCopyFromPreviousDay(tripState.days.findIndex(d => d.id === selectedDay.id))}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy from previous day
+                </Button>
+              )}
 
-                {/* Daily Shared */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" /> Shared Expenses
-                  </h3>
-                  {tripState.dailySharedExpenses.filter(e =>
-                    isDateWithinRange(selectedDay.date, e.startDate, e.endDate)
-                  ).length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic">No shared expenses active today.</p>
-                  ) : (
-                    tripState.dailySharedExpenses
-                      .filter(e => isDateWithinRange(selectedDay.date, e.startDate, e.endDate))
-                      .map(expense => (
-                        <Card key={expense.id}>
-                          <CardHeader className="p-4 pb-2">
-                            <CardTitle className="text-base">{expense.name}</CardTitle>
-                            <CardDescription>
-                              {expense.currency} {calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate).toFixed(2)} / day
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="p-4 pt-2 grid grid-cols-2 gap-2">
-                            {tripState.travelers
-                              .filter(t => isDateWithinRange(selectedDay.date, t.startDate, t.endDate))
-                              .map(traveler => (
-                                <div key={traveler.id} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`ds-${expense.id}-${traveler.id}`}
-                                    checked={
-                                      tripState.usageCosts.days[selectedDay.id]?.dailyShared[expense.id]?.includes(traveler.id) ?? false
-                                    }
-                                    onCheckedChange={(checked) =>
-                                      toggleTraveler(selectedDay.id, "dailyShared", expense.id, traveler.id, checked as boolean)
-                                    }
-                                  />
-                                  <Label htmlFor={`ds-${expense.id}-${traveler.id}`}>{traveler.name}</Label>
-                                </div>
-                              ))}
-                          </CardContent>
-                        </Card>
-                      ))
-                  )}
-                </div>
-
-                {/* Daily Personal */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" /> Personal Expenses
-                  </h3>
-                  {tripState.dailyPersonalExpenses.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic">No personal expenses defined.</p>
-                  ) : (
-                    tripState.dailyPersonalExpenses.map(expense => (
+              {/* Daily Shared */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5" /> Shared Expenses
+                </h3>
+                {tripState.dailySharedExpenses.filter(e =>
+                  isDateWithinRange(selectedDay.date, e.startDate, e.endDate)
+                ).length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">No shared expenses active today.</p>
+                ) : (
+                  tripState.dailySharedExpenses
+                    .filter(e => isDateWithinRange(selectedDay.date, e.startDate, e.endDate))
+                    .map(expense => (
                       <Card key={expense.id}>
                         <CardHeader className="p-4 pb-2">
                           <CardTitle className="text-base">{expense.name}</CardTitle>
                           <CardDescription>
-                            {expense.currency} {expense.dailyCost.toFixed(2)} / day
+                            {expense.currency} {calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate).toFixed(2)} / day
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="p-4 pt-2 grid grid-cols-2 gap-2">
-                          {tripState.travelers
-                            .filter(t => isDateWithinRange(selectedDay.date, t.startDate, t.endDate))
-                            .map(traveler => (
-                              <div key={traveler.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`dp-${expense.id}-${traveler.id}`}
-                                  checked={
-                                    tripState.usageCosts.days[selectedDay.id]?.dailyPersonal[expense.id]?.includes(traveler.id) ?? false
-                                  }
-                                  onCheckedChange={(checked) =>
-                                    toggleTraveler(selectedDay.id, "dailyPersonal", expense.id, traveler.id, checked as boolean)
-                                  }
-                                />
-                                <Label htmlFor={`dp-${expense.id}-${traveler.id}`}>{traveler.name}</Label>
-                              </div>
-                            ))}
+                        <CardContent className="p-4 pt-2">
+                          <TravelerSelector
+                            travelers={tripState.travelers.filter(t =>
+                              isDateWithinRange(selectedDay.date, t.startDate, t.endDate)
+                            )}
+                            selectedTravelerIds={
+                              tripState.usageCosts.days[selectedDay.id]?.dailyShared[expense.id] ?? []
+                            }
+                            onToggleTraveler={(travelerId, selected) =>
+                              toggleTraveler(selectedDay.id, "dailyShared", expense.id, travelerId, selected)
+                            }
+                            onCreateTraveler={(name) =>
+                              handleCreateTraveler(name, selectedDay.id, "dailyShared", expense.id)
+                            }
+                          />
                         </CardContent>
                       </Card>
                     ))
-                  )}
-                </div>
+                )}
               </div>
-            </ScrollArea>
+
+              {/* Daily Personal */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5" /> Personal Expenses
+                </h3>
+                {tripState.dailyPersonalExpenses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">No personal expenses defined.</p>
+                ) : (
+                  tripState.dailyPersonalExpenses.map(expense => (
+                    <Card key={expense.id}>
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-base">{expense.name}</CardTitle>
+                        <CardDescription>
+                          {expense.currency} {expense.dailyCost.toFixed(2)} / day
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-2">
+                        <TravelerSelector
+                          travelers={tripState.travelers.filter(t =>
+                            isDateWithinRange(selectedDay.date, t.startDate, t.endDate)
+                          )}
+                          selectedTravelerIds={
+                            tripState.usageCosts.days[selectedDay.id]?.dailyPersonal[expense.id] ?? []
+                          }
+                          onToggleTraveler={(travelerId, selected) =>
+                            toggleTraveler(selectedDay.id, "dailyPersonal", expense.id, travelerId, selected)
+                          }
+                          onCreateTraveler={(name) =>
+                            handleCreateTraveler(name, selectedDay.id, "dailyPersonal", expense.id)
+                          }
+                        />
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
           )}
         </SheetContent>
       </Sheet>
