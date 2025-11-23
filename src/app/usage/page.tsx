@@ -230,6 +230,38 @@ export default function UsagePage() {
     });
   };
 
+  const handleCreateTravelerForOneTime = (
+    name: string,
+    type: "oneTimeShared" | "oneTimePersonal",
+    expenseId: string
+  ) => {
+    const newTraveler = {
+      id: crypto.randomUUID(),
+      name,
+      startDate: tripState.startDate,
+      endDate: tripState.endDate,
+    };
+
+    setTripState((prev) => {
+      const updatedTravelers = sortTravelers([...prev.travelers, newTraveler]);
+
+      const currentList = prev.usageCosts[type][expenseId] ?? [];
+      const newList = [...currentList, newTraveler.id];
+
+      return {
+        ...prev,
+        travelers: updatedTravelers,
+        usageCosts: {
+          ...prev.usageCosts,
+          [type]: {
+            ...prev.usageCosts[type],
+            [expenseId]: newList,
+          },
+        },
+      };
+    });
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex flex-col gap-2">
@@ -329,31 +361,27 @@ export default function UsagePage() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {tripState.travelers.map((traveler) => (
-                        <div key={traveler.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`ots-${expense.id}-${traveler.id}`}
-                            checked={
-                              tripState.usageCosts.oneTimeShared[expense.id]?.includes(
-                                traveler.id
-                              ) ?? false
-                            }
-                            onCheckedChange={(checked) =>
-                              toggleOneTimeTraveler(
-                                "oneTimeShared",
-                                expense.id,
-                                traveler.id,
-                                checked as boolean
-                              )
-                            }
-                          />
-                          <Label htmlFor={`ots-${expense.id}-${traveler.id}`}>
-                            {traveler.name}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.oneTimeShared[expense.id] ?? []
+                      }
+                      onToggleTraveler={(travelerId, selected) =>
+                        toggleOneTimeTraveler(
+                          "oneTimeShared",
+                          expense.id,
+                          travelerId,
+                          selected
+                        )
+                      }
+                      onCreateTraveler={(name) =>
+                        handleCreateTravelerForOneTime(
+                          name,
+                          "oneTimeShared",
+                          expense.id
+                        )
+                      }
+                    />
                   </div>
                 ))
               )}
@@ -383,31 +411,27 @@ export default function UsagePage() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {tripState.travelers.map((traveler) => (
-                        <div key={traveler.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`otp-${expense.id}-${traveler.id}`}
-                            checked={
-                              tripState.usageCosts.oneTimePersonal[expense.id]?.includes(
-                                traveler.id
-                              ) ?? false
-                            }
-                            onCheckedChange={(checked) =>
-                              toggleOneTimeTraveler(
-                                "oneTimePersonal",
-                                expense.id,
-                                traveler.id,
-                                checked as boolean
-                              )
-                            }
-                          />
-                          <Label htmlFor={`otp-${expense.id}-${traveler.id}`}>
-                            {traveler.name}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.oneTimePersonal[expense.id] ?? []
+                      }
+                      onToggleTraveler={(travelerId, selected) =>
+                        toggleOneTimeTraveler(
+                          "oneTimePersonal",
+                          expense.id,
+                          travelerId,
+                          selected
+                        )
+                      }
+                      onCreateTraveler={(name) =>
+                        handleCreateTravelerForOneTime(
+                          name,
+                          "oneTimePersonal",
+                          expense.id
+                        )
+                      }
+                    />
                   </div>
                 ))
               )}
