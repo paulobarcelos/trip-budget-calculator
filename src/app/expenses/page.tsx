@@ -18,7 +18,6 @@ import {
   getDayCount,
   removeExpense,
 } from "@/utils/tripStateUpdates";
-import { shiftDate } from "@/utils/dateMath";
 import { migrateState } from "@/utils/stateMigrations";
 import { decodeState } from "@/utils/stateEncoding";
 import {
@@ -30,9 +29,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,20 +47,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
-import { DateRange } from "react-day-picker";
 import { format, parseISO } from "date-fns";
-import { Plus, Trash2, Edit2, HelpCircle } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Plus, Trash2, Edit2 } from "lucide-react";
 
 import { getTripDateRange } from "@/utils/tripDates";
+
+type ExpenseType = "dailyShared" | "dailyPersonal" | "oneTimeShared" | "oneTimePersonal";
 
 export default function ExpensesPage() {
   const router = useRouter();
@@ -79,17 +69,18 @@ export default function ExpensesPage() {
   const [error, setError] = useState("");
   const [expenseToDelete, setExpenseToDelete] = useState<{
     id: string;
-    type: "dailyShared" | "dailyPersonal" | "oneTimeShared" | "oneTimePersonal";
+    type: ExpenseType;
     name: string;
   } | null>(null);
 
   const [expenseToEdit, setExpenseToEdit] = useState<{
     id: string;
-    type: "dailyShared" | "dailyPersonal" | "oneTimeShared" | "oneTimePersonal";
+    type: ExpenseType;
   } | null>(null);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("dailyShared");
+  const [activeTab, setActiveTab] = useState("daily");
+  const [dialogExpenseType, setDialogExpenseType] = useState<ExpenseType>("dailyShared");
 
   const { startDate: derivedStartDate, endDate: derivedEndDate } = useMemo(
     () => getTripDateRange(tripState),
@@ -110,9 +101,6 @@ export default function ExpensesPage() {
     splitMode: "dailyOccupancy" as "dailyOccupancy" | "stayWeighted",
     lastEdited: "total" as "total" | "daily",
   });
-
-  const dayCountForForm = () =>
-    getDayCount(newDailySharedExpense.startDate, newDailySharedExpense.endDate);
 
   // Daily Personal Expense form state
   const [newDailyPersonalExpense, setNewDailyPersonalExpense] = useState({
@@ -137,23 +125,38 @@ export default function ExpensesPage() {
     currency: "USD",
   });
 
+  const handleOpenAddDialog = (type: ExpenseType) => {
+    setDialogExpenseType(type);
+    resetForms();
+    // Update dates to defaults just in case
+    setNewDailySharedExpense(prev => ({ ...prev, startDate: defaultStartDate, endDate: defaultEndDate }));
+    setNewDailyPersonalExpense(prev => ({ ...prev, startDate: defaultStartDate, endDate: defaultEndDate }));
+    setIsAddDialogOpen(true);
+  };
+
   const handleEditExpense = (
     expense:
       | DailySharedExpense
       | DailyPersonalExpense
       | OneTimeSharedExpense
       | OneTimePersonalExpense,
-    type: "dailyShared" | "dailyPersonal" | "oneTimeShared" | "oneTimePersonal",
+    type: ExpenseType,
   ) => {
     setExpenseToEdit({ id: expense.id, type });
-    setActiveTab(type);
+    setDialogExpenseType(type);
+
+    if (type.startsWith("daily")) {
+      setActiveTab("daily");
+    } else {
+      setActiveTab("onetime");
+    }
 
     if (type === "dailyShared") {
       const e = expense as DailySharedExpense;
       setNewDailySharedExpense({
         name: e.name,
         totalCost: e.totalCost.toString(),
-        dailyCost: "", // Not stored directly, calculated
+        dailyCost: "",
         startDate: e.startDate,
         endDate: e.endDate,
         currency: e.currency,
@@ -477,462 +480,245 @@ export default function ExpensesPage() {
             Log all your trip expenses here. Dates are automatically inferred.
           </p>
         </div>
-        <Dialog
-          open={isAddDialogOpen}
-          onOpenChange={(open) => {
-            setIsAddDialogOpen(open);
-            if (!open) resetForms();
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Expense
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {expenseToEdit ? "Edit Expense" : `Add ${activeTab.replace(/([A-Z])/g, ' $1').trim()}`}
-              </DialogTitle>
-              <DialogDescription>
-                {expenseToEdit ? "Update the details for this expense." : "Enter the details for the new expense."}
-              </DialogDescription>
-            </DialogHeader>
-
-            {activeTab === "dailyShared" && (
-              <form onSubmit={handleAddDailySharedExpense} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={newDailySharedExpense.name}
-                    onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="totalCost">Total Cost</Label>
-                    <Input
-                      id="totalCost"
-                      type="number"
-                      step="0.01"
-                      value={newDailySharedExpense.totalCost}
-                      onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, totalCost: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select
-                      value={newDailySharedExpense.currency}
-                      onValueChange={(value) => setNewDailySharedExpense({ ...newDailySharedExpense, currency: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencies.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Date Range</Label>
-                  <DatePickerWithRange
-                    date={{
-                      from: newDailySharedExpense.startDate ? parseISO(newDailySharedExpense.startDate) : undefined,
-                      to: newDailySharedExpense.endDate ? parseISO(newDailySharedExpense.endDate) : undefined,
-                    }}
-                    onDateChange={(range) => {
-                      if (range?.from && range?.to) {
-                        setNewDailySharedExpense({
-                          ...newDailySharedExpense,
-                          startDate: format(range.from, "yyyy-MM-dd"),
-                          endDate: format(range.to, "yyyy-MM-dd"),
-                        });
-                      }
-                    }}
-                    className="w-full"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    Split Mode
-                  </Label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={newDailySharedExpense.splitMode === "dailyOccupancy"}
-                        onChange={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "dailyOccupancy" })}
-                        className="accent-primary-600"
-                      />
-                      Daily Occupancy
-                      <InfoTooltip content="Cost is divided based on the number of days each traveler was present." />
-                    </label>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={newDailySharedExpense.splitMode === "stayWeighted"}
-                        onChange={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "stayWeighted" })}
-                        className="accent-primary-600"
-                      />
-                      Even-day Split
-                      <InfoTooltip content="Cost is divided equally among all selected travelers." />
-                    </label>
-                  </div>
-                </div>
-                {error && <div className="text-sm text-destructive">{error}</div>}
-                <DialogFooter>
-                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
-                </DialogFooter>
-              </form>
-            )}
-
-            {activeTab === "dailyPersonal" && (
-              <form onSubmit={handleAddDailyPersonalExpense} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={newDailyPersonalExpense.name}
-                    onChange={(e) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="dailyCost">Daily Cost</Label>
-                    <Input
-                      id="dailyCost"
-                      type="number"
-                      step="0.01"
-                      value={newDailyPersonalExpense.dailyCost}
-                      onChange={(e) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, dailyCost: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select
-                      value={newDailyPersonalExpense.currency}
-                      onValueChange={(value) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, currency: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencies.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Date Range</Label>
-                  <DatePickerWithRange
-                    date={{
-                      from: newDailyPersonalExpense.startDate ? parseISO(newDailyPersonalExpense.startDate) : undefined,
-                      to: newDailyPersonalExpense.endDate ? parseISO(newDailyPersonalExpense.endDate) : undefined,
-                    }}
-                    onDateChange={(range) => {
-                      if (range?.from && range?.to) {
-                        setNewDailyPersonalExpense({
-                          ...newDailyPersonalExpense,
-                          startDate: format(range.from, "yyyy-MM-dd"),
-                          endDate: format(range.to, "yyyy-MM-dd"),
-                        });
-                      }
-                    }}
-                    className="w-full"
-                  />
-                </div>
-                {error && <div className="text-sm text-destructive">{error}</div>}
-                <DialogFooter>
-                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
-                </DialogFooter>
-              </form>
-            )}
-
-            {activeTab === "oneTimeShared" && (
-              <form onSubmit={handleAddOneTimeSharedExpense} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={newOneTimeSharedExpense.name}
-                    onChange={(e) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="totalCost">Total Cost</Label>
-                    <Input
-                      id="totalCost"
-                      type="number"
-                      step="0.01"
-                      value={newOneTimeSharedExpense.totalCost}
-                      onChange={(e) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, totalCost: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select
-                      value={newOneTimeSharedExpense.currency}
-                      onValueChange={(value) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, currency: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencies.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {error && <div className="text-sm text-destructive">{error}</div>}
-                <DialogFooter>
-                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
-                </DialogFooter>
-              </form>
-            )}
-
-            {activeTab === "oneTimePersonal" && (
-              <form onSubmit={handleAddOneTimePersonalExpense} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={newOneTimePersonalExpense.name}
-                    onChange={(e) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="totalCost">Total Cost</Label>
-                    <Input
-                      id="totalCost"
-                      type="number"
-                      step="0.01"
-                      value={newOneTimePersonalExpense.totalCost}
-                      onChange={(e) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, totalCost: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select
-                      value={newOneTimePersonalExpense.currency}
-                      onValueChange={(value) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, currency: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencies.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {error && <div className="text-sm text-destructive">{error}</div>}
-                <DialogFooter>
-                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
-                </DialogFooter>
-              </form>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
 
-
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
-          <TabsTrigger value="dailyShared">Daily Shared</TabsTrigger>
-          <TabsTrigger value="dailyPersonal">Daily Personal</TabsTrigger>
-          <TabsTrigger value="oneTimeShared">One-time Shared</TabsTrigger>
-          <TabsTrigger value="oneTimePersonal">One-time Personal</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="daily">Daily Expenses</TabsTrigger>
+          <TabsTrigger value="onetime">One-time Expenses</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dailyShared" className="space-y-4">
-          <div className="grid gap-4">
-            {tripState.dailySharedExpenses.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                <p className="text-muted-foreground">No daily shared expenses added yet.</p>
+        <TabsContent value="daily" className="space-y-8">
+          {/* Shared Daily Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  Shared Daily Expenses
+                  <InfoTooltip content="Recurring costs split among the group (e.g., Hotels, Car Rental)." />
+                </h2>
+                <p className="text-sm text-muted-foreground">Expenses that occur every day and are shared.</p>
               </div>
-            ) : (
-              tripState.dailySharedExpenses.map((expense) => (
-                <Card key={expense.id}>
-                  <CardContent className="p-6 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">{expense.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {expense.currency} {expense.totalCost.toFixed(2)} total • {expense.splitMode === 'dailyOccupancy' ? 'Daily Occupancy' : 'Even Split'}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary"
-                        onClick={() => handleEditExpense(expense, "dailyShared")}
-                      >
-                        <Edit2 className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyShared", name: expense.name })}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+              <Button onClick={() => handleOpenAddDialog("dailyShared")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Shared
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {tripState.dailySharedExpenses.length === 0 ? (
+                <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
+                  <p className="text-muted-foreground">No shared daily expenses.</p>
+                </div>
+              ) : (
+                tripState.dailySharedExpenses.map((expense) => (
+                  <Card key={expense.id}>
+                    <CardContent className="p-6 flex flex-col justify-between h-full gap-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{expense.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {expense.currency} {expense.totalCost.toFixed(2)} total
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
+                        </p>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-primary"
+                          onClick={() => handleEditExpense(expense, "dailyShared")}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyShared", name: expense.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Personal Daily Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  Personal Daily Expenses
+                  <InfoTooltip content="Recurring costs for individuals (e.g., Daily Food Allowance)." />
+                </h2>
+                <p className="text-sm text-muted-foreground">Expenses that occur every day for a specific person.</p>
+              </div>
+              <Button onClick={() => handleOpenAddDialog("dailyPersonal")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Personal
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {tripState.dailyPersonalExpenses.length === 0 ? (
+                <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
+                  <p className="text-muted-foreground">No personal daily expenses.</p>
+                </div>
+              ) : (
+                tripState.dailyPersonalExpenses.map((expense) => (
+                  <Card key={expense.id}>
+                    <CardContent className="p-6 flex flex-col justify-between h-full gap-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{expense.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {expense.currency} {expense.dailyCost.toFixed(2)} / day
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
+                        </p>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-primary"
+                          onClick={() => handleEditExpense(expense, "dailyPersonal")}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyPersonal", name: expense.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="dailyPersonal" className="space-y-4">
-          <div className="grid gap-4">
-            {tripState.dailyPersonalExpenses.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                <p className="text-muted-foreground">No daily personal expenses added yet.</p>
+        <TabsContent value="onetime" className="space-y-8">
+          {/* Shared One-Time Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  Shared One-Time Expenses
+                  <InfoTooltip content="Single costs split among the group (e.g., Group Dinner, Tickets)." />
+                </h2>
+                <p className="text-sm text-muted-foreground">One-off expenses shared by the group.</p>
               </div>
-            ) : (
-              tripState.dailyPersonalExpenses.map((expense) => (
-                <Card key={expense.id}>
-                  <CardContent className="p-6 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">{expense.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {expense.currency} {expense.dailyCost.toFixed(2)} / day
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary"
-                        onClick={() => handleEditExpense(expense, "dailyPersonal")}
-                      >
-                        <Edit2 className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyPersonal", name: expense.name })}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </TabsContent>
+              <Button onClick={() => handleOpenAddDialog("oneTimeShared")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Shared
+              </Button>
+            </div>
 
-        <TabsContent value="oneTimeShared" className="space-y-4">
-          <div className="grid gap-4">
-            {tripState.oneTimeSharedExpenses.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                <p className="text-muted-foreground">No one-time shared expenses added yet.</p>
-              </div>
-            ) : (
-              tripState.oneTimeSharedExpenses.map((expense) => (
-                <Card key={expense.id}>
-                  <CardContent className="p-6 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">{expense.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {expense.currency} {expense.totalCost.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary"
-                        onClick={() => handleEditExpense(expense, "oneTimeShared")}
-                      >
-                        <Edit2 className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimeShared", name: expense.name })}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {tripState.oneTimeSharedExpenses.length === 0 ? (
+                <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
+                  <p className="text-muted-foreground">No shared one-time expenses.</p>
+                </div>
+              ) : (
+                tripState.oneTimeSharedExpenses.map((expense) => (
+                  <Card key={expense.id}>
+                    <CardContent className="p-6 flex flex-col justify-between h-full gap-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{expense.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {expense.currency} {expense.totalCost.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-primary"
+                          onClick={() => handleEditExpense(expense, "oneTimeShared")}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimeShared", name: expense.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="oneTimePersonal" className="space-y-4">
-          <div className="grid gap-4">
-            {tripState.oneTimePersonalExpenses.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                <p className="text-muted-foreground">No one-time personal expenses added yet.</p>
+          {/* Personal One-Time Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  Personal One-Time Expenses
+                  <InfoTooltip content="Single costs for individuals (e.g., Souvenirs, Personal Shopping)." />
+                </h2>
+                <p className="text-sm text-muted-foreground">One-off expenses for a specific person.</p>
               </div>
-            ) : (
-              tripState.oneTimePersonalExpenses.map((expense) => (
-                <Card key={expense.id}>
-                  <CardContent className="p-6 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">{expense.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {expense.currency} {expense.totalCost.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary"
-                        onClick={() => handleEditExpense(expense, "oneTimePersonal")}
-                      >
-                        <Edit2 className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimePersonal", name: expense.name })}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+              <Button onClick={() => handleOpenAddDialog("oneTimePersonal")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Personal
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {tripState.oneTimePersonalExpenses.length === 0 ? (
+                <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
+                  <p className="text-muted-foreground">No personal one-time expenses.</p>
+                </div>
+              ) : (
+                tripState.oneTimePersonalExpenses.map((expense) => (
+                  <Card key={expense.id}>
+                    <CardContent className="p-6 flex flex-col justify-between h-full gap-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{expense.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {expense.currency} {expense.totalCost.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-primary"
+                          onClick={() => handleEditExpense(expense, "oneTimePersonal")}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimePersonal", name: expense.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
         </TabsContent>
       </Tabs>
@@ -946,6 +732,278 @@ export default function ExpensesPage() {
           Continue to Usage
         </Button>
       </div>
+
+      <Dialog
+        open={isAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) resetForms();
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {expenseToEdit ? "Edit Expense" : `Add ${dialogExpenseType.replace(/([A-Z])/g, ' $1').trim()}`}
+            </DialogTitle>
+            <DialogDescription>
+              {expenseToEdit ? "Update the details for this expense." : "Enter the details for the new expense."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {dialogExpenseType === "dailyShared" && (
+            <form onSubmit={handleAddDailySharedExpense} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newDailySharedExpense.name}
+                  onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="totalCost">Total Cost</Label>
+                  <Input
+                    id="totalCost"
+                    type="number"
+                    step="0.01"
+                    value={newDailySharedExpense.totalCost}
+                    onChange={(e) => setNewDailySharedExpense({ ...newDailySharedExpense, totalCost: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select
+                    value={newDailySharedExpense.currency}
+                    onValueChange={(value) => setNewDailySharedExpense({ ...newDailySharedExpense, currency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Date Range</Label>
+                <DatePickerWithRange
+                  date={{
+                    from: newDailySharedExpense.startDate ? parseISO(newDailySharedExpense.startDate) : undefined,
+                    to: newDailySharedExpense.endDate ? parseISO(newDailySharedExpense.endDate) : undefined,
+                  }}
+                  onDateChange={(range) => {
+                    if (range?.from && range?.to) {
+                      setNewDailySharedExpense({
+                        ...newDailySharedExpense,
+                        startDate: format(range.from, "yyyy-MM-dd"),
+                        endDate: format(range.to, "yyyy-MM-dd"),
+                      });
+                    }
+                  }}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  Split Mode
+                </Label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={newDailySharedExpense.splitMode === "dailyOccupancy"}
+                      onChange={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "dailyOccupancy" })}
+                      className="accent-primary-600"
+                    />
+                    Daily Occupancy
+                    <InfoTooltip content="Cost is divided based on the number of days each traveler was present." />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={newDailySharedExpense.splitMode === "stayWeighted"}
+                      onChange={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "stayWeighted" })}
+                      className="accent-primary-600"
+                    />
+                    Even-day Split
+                    <InfoTooltip content="Cost is divided equally among all selected travelers." />
+                  </label>
+                </div>
+              </div>
+              {error && <div className="text-sm text-destructive">{error}</div>}
+              <DialogFooter>
+                <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+
+          {dialogExpenseType === "dailyPersonal" && (
+            <form onSubmit={handleAddDailyPersonalExpense} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newDailyPersonalExpense.name}
+                  onChange={(e) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dailyCost">Daily Cost</Label>
+                  <Input
+                    id="dailyCost"
+                    type="number"
+                    step="0.01"
+                    value={newDailyPersonalExpense.dailyCost}
+                    onChange={(e) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, dailyCost: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select
+                    value={newDailyPersonalExpense.currency}
+                    onValueChange={(value) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, currency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Date Range</Label>
+                <DatePickerWithRange
+                  date={{
+                    from: newDailyPersonalExpense.startDate ? parseISO(newDailyPersonalExpense.startDate) : undefined,
+                    to: newDailyPersonalExpense.endDate ? parseISO(newDailyPersonalExpense.endDate) : undefined,
+                  }}
+                  onDateChange={(range) => {
+                    if (range?.from && range?.to) {
+                      setNewDailyPersonalExpense({
+                        ...newDailyPersonalExpense,
+                        startDate: format(range.from, "yyyy-MM-dd"),
+                        endDate: format(range.to, "yyyy-MM-dd"),
+                      });
+                    }
+                  }}
+                  className="w-full"
+                />
+              </div>
+              {error && <div className="text-sm text-destructive">{error}</div>}
+              <DialogFooter>
+                <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+
+          {dialogExpenseType === "oneTimeShared" && (
+            <form onSubmit={handleAddOneTimeSharedExpense} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newOneTimeSharedExpense.name}
+                  onChange={(e) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="totalCost">Total Cost</Label>
+                  <Input
+                    id="totalCost"
+                    type="number"
+                    step="0.01"
+                    value={newOneTimeSharedExpense.totalCost}
+                    onChange={(e) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, totalCost: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select
+                    value={newOneTimeSharedExpense.currency}
+                    onValueChange={(value) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, currency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {error && <div className="text-sm text-destructive">{error}</div>}
+              <DialogFooter>
+                <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+
+          {dialogExpenseType === "oneTimePersonal" && (
+            <form onSubmit={handleAddOneTimePersonalExpense} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newOneTimePersonalExpense.name}
+                  onChange={(e) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="totalCost">Total Cost</Label>
+                  <Input
+                    id="totalCost"
+                    type="number"
+                    step="0.01"
+                    value={newOneTimePersonalExpense.totalCost}
+                    onChange={(e) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, totalCost: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select
+                    value={newOneTimePersonalExpense.currency}
+                    onValueChange={(value) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, currency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {error && <div className="text-sm text-destructive">{error}</div>}
+              <DialogFooter>
+                <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <ConfirmationDialog
         isOpen={expenseToDelete !== null}

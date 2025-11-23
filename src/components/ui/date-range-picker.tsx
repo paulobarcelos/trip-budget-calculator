@@ -50,6 +50,15 @@ export function DatePickerWithRange({
             }}
             visibleMonths={2}
             pageBehavior="single"
+            popoverProps={{
+                // Ensure popover is above dialog and interactive
+                classNames: {
+                    content: "z-[100] pointer-events-auto",
+                },
+                shouldFlip: true,
+                // Disable animation to prevent interaction issues during mount
+                disableAnimation: true,
+            }}
         />
     );
 }
