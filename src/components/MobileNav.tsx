@@ -20,12 +20,9 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const pathname = usePathname();
 
   const navigation = [
-    { name: 'Instructions', href: '/' },
-    { name: 'Setup', href: '/setup' },
-    { name: 'Travelers', href: '/travelers' },
     { name: 'Expenses', href: '/expenses' },
     { name: 'Usage', href: '/usage' },
-    { name: 'Budget', href: '/budget' },
+    { name: 'Travelers', href: '/travelers' },
   ];
 
   return (
@@ -45,8 +42,8 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                     href={item.href}
                     onClick={onClose}
                     className={`-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 hover:bg-gray-50 dark:hover:bg-gray-800 ${isActive
-                        ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
-                        : 'text-gray-900 dark:text-gray-100'
+                      ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
+                      : 'text-gray-900 dark:text-gray-100'
                       }`}
                   >
                     {item.name}

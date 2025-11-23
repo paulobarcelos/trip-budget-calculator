@@ -3,20 +3,17 @@
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TripState } from "@/types";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { initialTripState } from "@/constants/initialState";
-import { sortTravelers, updateTravelerDates } from "@/utils/tripStateUpdates";
+import { sortTravelers } from "@/utils/tripStateUpdates";
 import { Instructions } from "@/components/Instructions";
 import { instructions } from "./instructions";
-import { shiftDate } from "@/utils/dateMath";
 import { migrateState } from "@/utils/stateMigrations";
 import { decodeState } from "@/utils/stateEncoding";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,15 +27,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { DatePickerWithRange } from "@/components/ui/date-range-picker";
-import { DateRange } from "react-day-picker";
-import { format, parseISO } from "date-fns";
-import { Plus, Trash2 } from "lucide-react";
+import { currencies } from "@/data/currencies";
+import { Plus, Trash2, Edit2 } from "lucide-react";
 
 interface TravelerToDelete {
   id: string;
   name: string;
 }
+
+import { useTripBudget } from "@/hooks/useTripBudget";
+import { formatCurrency } from "@/utils/currencyFormatting";
 
 export default function TravelersPage() {
   const router = useRouter();
@@ -54,29 +52,16 @@ export default function TravelersPage() {
     useState<TravelerToDelete | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newTravelerDateRange, setNewTravelerDateRange] = useState<DateRange | undefined>();
+  const [travelerToEdit, setTravelerToEdit] = useState<{ id: string; name: string } | null>(null);
 
-  const tripStart = tripState.startDate;
-  const tripEnd = tripState.endDate;
+  const { budgetData, isLoading } = useTripBudget(tripState);
 
-  // Set default date range for new traveler to trip dates
-  // Removed useEffect to avoid set-state-in-effect lint error
+  const handleEditTraveler = (traveler: { id: string; name: string }) => {
+    setTravelerToEdit(traveler);
+    setIsAddDialogOpen(true);
+  };
 
-  if (!isInitialized) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Travelers
-        </h1>
-        <div className="animate-pulse space-y-4">
-          <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
-          <div className="h-64 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
-        </div>
-      </div>
-    );
-  }
-
-  const handleAddTraveler = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddOrUpdateTraveler = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
@@ -86,98 +71,32 @@ export default function TravelersPage() {
       return;
     }
 
-    if (!newTravelerDateRange?.from || !newTravelerDateRange?.to) {
-      setError("Please select travel dates.");
-      return;
-    }
-
-    const startDate = format(newTravelerDateRange.from, "yyyy-MM-dd");
-    const endDate = format(newTravelerDateRange.to, "yyyy-MM-dd");
-
-    if (startDate >= endDate) {
-      setError("Departure date must be after the start date.");
-      return;
-    }
-
-    if (
-      (tripStart && startDate < tripStart) ||
-      (tripEnd && endDate > tripEnd)
-    ) {
-      setError("Traveler dates must stay within the trip window.");
-      return;
-    }
-
     setError(null);
 
-    setTripState({
-      ...tripState,
-      travelers: sortTravelers([
-        ...tripState.travelers,
-        {
-          id: crypto.randomUUID(),
-          name,
-          startDate,
-          endDate,
-        },
-      ]),
-    });
+    if (travelerToEdit) {
+      const updatedTravelers = tripState.travelers.map((t) =>
+        t.id === travelerToEdit.id ? { ...t, name } : t
+      );
 
-    setIsAddDialogOpen(false);
-    // Reset form state
-    if (tripStart && tripEnd) {
-      setNewTravelerDateRange({
-        from: parseISO(tripStart),
-        to: parseISO(tripEnd),
+      setTripState({
+        ...tripState,
+        travelers: sortTravelers(updatedTravelers),
+      });
+    } else {
+      setTripState({
+        ...tripState,
+        travelers: sortTravelers([
+          ...tripState.travelers,
+          {
+            id: crypto.randomUUID(),
+            name,
+          },
+        ]),
       });
     }
-  };
 
-  const handleUpdateTravelerDates = (
-    travelerId: string,
-    range: DateRange | undefined
-  ) => {
-    if (!range?.from || !range?.to) return;
-
-    const startDate = format(range.from, "yyyy-MM-dd");
-    const endDate = format(range.to, "yyyy-MM-dd");
-
-    const traveler = tripState.travelers.find((t) => t.id === travelerId);
-    if (!traveler) return;
-
-    const clampedStart =
-      tripStart && startDate < tripStart ? tripStart : startDate;
-    const clampedEnd =
-      tripEnd && endDate > tripEnd ? tripEnd : endDate;
-
-    if (clampedStart >= clampedEnd) {
-      setError("Departure must be later than the start date.");
-      return;
-    }
-
-    setError(null);
-
-    const updatedTripState = updateTravelerDates(
-      tripState,
-      travelerId,
-      clampedStart !== traveler.startDate ? clampedStart : null,
-      clampedEnd !== traveler.endDate ? clampedEnd : null,
-    );
-
-    setTripState({
-      ...updatedTripState,
-      travelers: sortTravelers(updatedTripState.travelers),
-    });
-  };
-
-  const handleUpdateTravelerName = (travelerId: string, name: string) => {
-    const updatedTravelers = tripState.travelers.map((traveler) =>
-      traveler.id === travelerId ? { ...traveler, name } : traveler
-    );
-
-    setTripState({
-      ...tripState,
-      travelers: sortTravelers(updatedTravelers),
-    });
+    setIsAddDialogOpen(false);
+    setTravelerToEdit(null);
   };
 
   const handleRemoveTraveler = (travelerId: string) => {
@@ -240,6 +159,8 @@ export default function TravelersPage() {
     });
   };
 
+
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -248,100 +169,96 @@ export default function TravelersPage() {
             Travelers
           </h1>
           <p className="text-muted-foreground">
-            Add everyone joining the trip and their specific dates.
+            Manage your travel group. Total costs are calculated automatically.
           </p>
         </div>
-        <Dialog
-          open={isAddDialogOpen}
-          onOpenChange={(open) => {
-            setIsAddDialogOpen(open);
-            if (open && !newTravelerDateRange && tripStart && tripEnd) {
-              setNewTravelerDateRange({
-                from: parseISO(tripStart),
-                to: parseISO(tripEnd),
-              });
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Traveler
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Traveler</DialogTitle>
-              <DialogDescription>
-                Enter the traveler&apos;s name and their travel dates.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddTraveler} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" name="name" required placeholder="e.g. Alice" />
-              </div>
-              <div className="space-y-2">
-                <Label>Travel Dates</Label>
-                <DatePickerWithRange
-                  date={newTravelerDateRange}
-                  onDateChange={setNewTravelerDateRange}
-                  className="w-full"
-                />
-              </div>
-              {error && (
-                <div className="text-sm text-destructive bg-destructive/15 p-2 rounded">
-                  {error}
+        <div className="flex items-center gap-2">
+          <Dialog
+            open={isAddDialogOpen}
+            onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) {
+                setTravelerToEdit(null);
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Traveler
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{travelerToEdit ? "Edit Traveler" : "Add New Traveler"}</DialogTitle>
+                <DialogDescription>
+                  {travelerToEdit ? "Update the traveler's details." : "Enter the traveler's name."}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddOrUpdateTraveler} className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    required
+                    placeholder="e.g. Alice"
+                    defaultValue={travelerToEdit?.name}
+                  />
                 </div>
-              )}
-              <DialogFooter>
-                <Button type="submit">Add Traveler</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                {error && (
+                  <div className="text-sm text-destructive bg-destructive/15 p-2 rounded">
+                    {error}
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button type="submit">{travelerToEdit ? "Update Traveler" : "Add Traveler"}</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <Instructions text={instructions} />
-
       <div className="grid gap-4">
-        {sortTravelers(tripState.travelers).map((traveler) => (
-          <Card key={traveler.id}>
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      value={traveler.name}
-                      onChange={(e) => handleUpdateTravelerName(traveler.id, e.target.value)}
-                      className="text-lg font-semibold border-transparent hover:border-input focus:border-input px-2 -ml-2 h-auto py-1 w-auto min-w-[200px]"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-muted-foreground w-20">Dates:</Label>
-                    <DatePickerWithRange
-                      date={{
-                        from: parseISO(traveler.startDate),
-                        to: parseISO(traveler.endDate),
-                      }}
-                      onDateChange={(range) => handleUpdateTravelerDates(traveler.id, range)}
-                      className="w-[300px]"
-                    />
-                  </div>
+        {sortTravelers(tripState.travelers).map((traveler) => {
+          const costs = budgetData?.travelerCosts.get(traveler.id);
+          const totalAmount = costs?.total.amount || 0;
+          const isApproximate = costs?.total.isApproximate || false;
+
+          return (
+            <Card key={traveler.id}>
+              <CardContent className="p-6 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-lg">{traveler.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {isLoading ? "Calculating..." : formatCurrency(totalAmount, tripState.displayCurrency, isApproximate)}
+                  </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => setTravelerToDelete({ id: traveler.id, name: traveler.name })}
-                  aria-label="Remove"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-primary"
+                    onClick={() => handleEditTraveler(traveler)}
+                    aria-label="Edit"
+                  >
+                    <Edit2 className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => setTravelerToDelete({ id: traveler.id, name: traveler.name })}
+                    aria-label="Remove"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
 
         {tripState.travelers.length === 0 && (
           <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted-foreground/25">
@@ -356,6 +273,22 @@ export default function TravelersPage() {
           </div>
         )}
       </div>
+
+      {budgetData && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-lg">Grand Total</h3>
+              <p className="text-sm text-muted-foreground">
+                Total estimated cost for the entire trip
+              </p>
+            </div>
+            <div className="text-2xl font-bold text-primary">
+              {formatCurrency(budgetData.grandTotal.amount, tripState.displayCurrency, budgetData.grandTotal.isApproximate)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-end pt-4">
         <Button

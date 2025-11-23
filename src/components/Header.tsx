@@ -7,19 +7,26 @@ import { MobileNav } from './MobileNav';
 import { DataTransferControls } from './DataTransferControls';
 import { SyncStatus } from './SyncStatus';
 import { Menu } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import { Button } from './ui/button';
+import { currencies } from '@/data/currencies';
+import { useDisplayCurrency } from '@/providers/DisplayCurrencyProvider';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { displayCurrency, setDisplayCurrency } = useDisplayCurrency();
 
   const navigation = [
-    { name: 'Instructions', href: '/' },
-    { name: 'Setup', href: '/setup' },
-    { name: 'Travelers', href: '/travelers' },
     { name: 'Expenses', href: '/expenses' },
     { name: 'Usage', href: '/usage' },
-    { name: 'Budget', href: '/budget' },
+    { name: 'Travelers', href: '/travelers' },
   ];
 
   return (
@@ -40,8 +47,8 @@ export function Header() {
                     key={item.name}
                     href={item.href}
                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                        ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
                       }`}
                   >
                     {item.name}
@@ -52,6 +59,23 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="hidden md:block">
+              <Select
+                value={displayCurrency}
+                onValueChange={setDisplayCurrency}
+              >
+                <SelectTrigger className="w-[100px] h-8 text-xs">
+                  <SelectValue placeholder="Currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code} className="text-xs">
+                      {currency.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="hidden md:block">
               <SyncStatus />
             </div>

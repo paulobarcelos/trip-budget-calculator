@@ -13,8 +13,7 @@ import { useRouter } from "next/navigation";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { initialTripState } from "@/constants/initialState";
 import { currencies } from "@/data/currencies";
-import { Instructions } from "@/components/Instructions";
-import { instructions } from "./instructions";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import {
   getDayCount,
   removeExpense,
@@ -65,6 +64,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { getTripDateRange } from "@/utils/tripDates";
+
 export default function ExpensesPage() {
   const router = useRouter();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>(
@@ -90,13 +91,21 @@ export default function ExpensesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dailyShared");
 
+  const { startDate: derivedStartDate, endDate: derivedEndDate } = useMemo(
+    () => getTripDateRange(tripState),
+    [tripState]
+  );
+
+  const defaultStartDate = derivedStartDate || format(new Date(), "yyyy-MM-dd");
+  const defaultEndDate = derivedEndDate || format(new Date(), "yyyy-MM-dd");
+
   // Daily Shared Expense form state
   const [newDailySharedExpense, setNewDailySharedExpense] = useState({
     name: "",
     totalCost: "",
     dailyCost: "",
-    startDate: tripState.startDate,
-    endDate: tripState.endDate,
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
     currency: "USD",
     splitMode: "dailyOccupancy" as "dailyOccupancy" | "stayWeighted",
     lastEdited: "total" as "total" | "daily",
@@ -110,6 +119,8 @@ export default function ExpensesPage() {
     name: "",
     dailyCost: "",
     currency: "USD",
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
   });
 
   // One-time Shared Expense form state
@@ -125,6 +136,57 @@ export default function ExpensesPage() {
     totalCost: "",
     currency: "USD",
   });
+
+  const handleEditExpense = (
+    expense:
+      | DailySharedExpense
+      | DailyPersonalExpense
+      | OneTimeSharedExpense
+      | OneTimePersonalExpense,
+    type: "dailyShared" | "dailyPersonal" | "oneTimeShared" | "oneTimePersonal",
+  ) => {
+    setExpenseToEdit({ id: expense.id, type });
+    setActiveTab(type);
+
+    if (type === "dailyShared") {
+      const e = expense as DailySharedExpense;
+      setNewDailySharedExpense({
+        name: e.name,
+        totalCost: e.totalCost.toString(),
+        dailyCost: "", // Not stored directly, calculated
+        startDate: e.startDate,
+        endDate: e.endDate,
+        currency: e.currency,
+        splitMode: e.splitMode,
+        lastEdited: "total",
+      });
+    } else if (type === "dailyPersonal") {
+      const e = expense as DailyPersonalExpense;
+      setNewDailyPersonalExpense({
+        name: e.name,
+        dailyCost: e.dailyCost.toString(),
+        currency: e.currency,
+        startDate: e.startDate,
+        endDate: e.endDate,
+      });
+    } else if (type === "oneTimeShared") {
+      const e = expense as OneTimeSharedExpense;
+      setNewOneTimeSharedExpense({
+        name: e.name,
+        totalCost: e.totalCost.toString(),
+        currency: e.currency,
+      });
+    } else if (type === "oneTimePersonal") {
+      const e = expense as OneTimePersonalExpense;
+      setNewOneTimePersonalExpense({
+        name: e.name,
+        totalCost: e.totalCost.toString(),
+        currency: e.currency,
+      });
+    }
+
+    setIsAddDialogOpen(true);
+  };
 
   const handleAddDailySharedExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -155,29 +217,39 @@ export default function ExpensesPage() {
       return;
     }
 
-    if (
-      new Date(newDailySharedExpense.startDate) <
-      new Date(tripState.startDate) ||
-      new Date(newDailySharedExpense.endDate) > new Date(tripState.endDate)
-    ) {
-      setError("Expense dates must be within trip dates");
-      return;
+    if (expenseToEdit && expenseToEdit.type === "dailyShared") {
+      setTripState((prev) => ({
+        ...prev,
+        dailySharedExpenses: prev.dailySharedExpenses.map((exp) =>
+          exp.id === expenseToEdit.id
+            ? {
+              ...exp,
+              name: newDailySharedExpense.name.trim(),
+              totalCost,
+              startDate: newDailySharedExpense.startDate,
+              endDate: newDailySharedExpense.endDate,
+              currency: newDailySharedExpense.currency,
+              splitMode: newDailySharedExpense.splitMode,
+            }
+            : exp,
+        ),
+      }));
+    } else {
+      const expense: DailySharedExpense = {
+        id: crypto.randomUUID(),
+        name: newDailySharedExpense.name.trim(),
+        totalCost,
+        startDate: newDailySharedExpense.startDate,
+        endDate: newDailySharedExpense.endDate,
+        currency: newDailySharedExpense.currency,
+        splitMode: newDailySharedExpense.splitMode,
+      };
+
+      setTripState({
+        ...tripState,
+        dailySharedExpenses: [...tripState.dailySharedExpenses, expense],
+      });
     }
-
-    const expense: DailySharedExpense = {
-      id: crypto.randomUUID(),
-      name: newDailySharedExpense.name.trim(),
-      totalCost,
-      startDate: newDailySharedExpense.startDate,
-      endDate: newDailySharedExpense.endDate,
-      currency: newDailySharedExpense.currency,
-      splitMode: newDailySharedExpense.splitMode,
-    };
-
-    setTripState({
-      ...tripState,
-      dailySharedExpenses: [...tripState.dailySharedExpenses, expense],
-    });
 
     resetForms();
     setIsAddDialogOpen(false);
@@ -195,23 +267,45 @@ export default function ExpensesPage() {
 
     if (
       !newDailyPersonalExpense.name.trim() ||
-      !newDailyPersonalExpense.dailyCost
+      !newDailyPersonalExpense.dailyCost ||
+      !newDailyPersonalExpense.startDate ||
+      !newDailyPersonalExpense.endDate
     ) {
       setError("All fields are required");
       return;
     }
 
-    const expense: DailyPersonalExpense = {
-      id: crypto.randomUUID(),
-      name: newDailyPersonalExpense.name.trim(),
-      dailyCost,
-      currency: newDailyPersonalExpense.currency,
-    };
+    if (expenseToEdit && expenseToEdit.type === "dailyPersonal") {
+      setTripState((prev) => ({
+        ...prev,
+        dailyPersonalExpenses: prev.dailyPersonalExpenses.map((exp) =>
+          exp.id === expenseToEdit.id
+            ? {
+              ...exp,
+              name: newDailyPersonalExpense.name.trim(),
+              dailyCost,
+              currency: newDailyPersonalExpense.currency,
+              startDate: newDailyPersonalExpense.startDate,
+              endDate: newDailyPersonalExpense.endDate,
+            }
+            : exp,
+        ),
+      }));
+    } else {
+      const expense: DailyPersonalExpense = {
+        id: crypto.randomUUID(),
+        name: newDailyPersonalExpense.name.trim(),
+        dailyCost,
+        currency: newDailyPersonalExpense.currency,
+        startDate: newDailyPersonalExpense.startDate,
+        endDate: newDailyPersonalExpense.endDate,
+      };
 
-    setTripState({
-      ...tripState,
-      dailyPersonalExpenses: [...tripState.dailyPersonalExpenses, expense],
-    });
+      setTripState({
+        ...tripState,
+        dailyPersonalExpenses: [...tripState.dailyPersonalExpenses, expense],
+      });
+    }
 
     resetForms();
     setIsAddDialogOpen(false);
@@ -235,17 +329,33 @@ export default function ExpensesPage() {
       return;
     }
 
-    const expense: OneTimeSharedExpense = {
-      id: crypto.randomUUID(),
-      name: newOneTimeSharedExpense.name.trim(),
-      totalCost,
-      currency: newOneTimeSharedExpense.currency,
-    };
+    if (expenseToEdit && expenseToEdit.type === "oneTimeShared") {
+      setTripState((prev) => ({
+        ...prev,
+        oneTimeSharedExpenses: prev.oneTimeSharedExpenses.map((exp) =>
+          exp.id === expenseToEdit.id
+            ? {
+              ...exp,
+              name: newOneTimeSharedExpense.name.trim(),
+              totalCost,
+              currency: newOneTimeSharedExpense.currency,
+            }
+            : exp,
+        ),
+      }));
+    } else {
+      const expense: OneTimeSharedExpense = {
+        id: crypto.randomUUID(),
+        name: newOneTimeSharedExpense.name.trim(),
+        totalCost,
+        currency: newOneTimeSharedExpense.currency,
+      };
 
-    setTripState({
-      ...tripState,
-      oneTimeSharedExpenses: [...tripState.oneTimeSharedExpenses, expense],
-    });
+      setTripState({
+        ...tripState,
+        oneTimeSharedExpenses: [...tripState.oneTimeSharedExpenses, expense],
+      });
+    }
 
     resetForms();
     setIsAddDialogOpen(false);
@@ -269,17 +379,33 @@ export default function ExpensesPage() {
       return;
     }
 
-    const expense: OneTimePersonalExpense = {
-      id: crypto.randomUUID(),
-      name: newOneTimePersonalExpense.name.trim(),
-      totalCost,
-      currency: newOneTimePersonalExpense.currency,
-    };
+    if (expenseToEdit && expenseToEdit.type === "oneTimePersonal") {
+      setTripState((prev) => ({
+        ...prev,
+        oneTimePersonalExpenses: prev.oneTimePersonalExpenses.map((exp) =>
+          exp.id === expenseToEdit.id
+            ? {
+              ...exp,
+              name: newOneTimePersonalExpense.name.trim(),
+              totalCost,
+              currency: newOneTimePersonalExpense.currency,
+            }
+            : exp,
+        ),
+      }));
+    } else {
+      const expense: OneTimePersonalExpense = {
+        id: crypto.randomUUID(),
+        name: newOneTimePersonalExpense.name.trim(),
+        totalCost,
+        currency: newOneTimePersonalExpense.currency,
+      };
 
-    setTripState({
-      ...tripState,
-      oneTimePersonalExpenses: [...tripState.oneTimePersonalExpenses, expense],
-    });
+      setTripState({
+        ...tripState,
+        oneTimePersonalExpenses: [...tripState.oneTimePersonalExpenses, expense],
+      });
+    }
 
     resetForms();
     setIsAddDialogOpen(false);
@@ -295,12 +421,13 @@ export default function ExpensesPage() {
   };
 
   const resetForms = () => {
+    setExpenseToEdit(null);
     setNewDailySharedExpense({
       name: "",
       totalCost: "",
       dailyCost: "",
-      startDate: tripState.startDate,
-      endDate: tripState.endDate,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
       currency: "USD",
       splitMode: "dailyOccupancy",
       lastEdited: "total",
@@ -309,6 +436,8 @@ export default function ExpensesPage() {
       name: "",
       dailyCost: "",
       currency: "USD",
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
     });
     setNewOneTimeSharedExpense({
       name: "",
@@ -345,10 +474,16 @@ export default function ExpensesPage() {
             Expenses
           </h1>
           <p className="text-muted-foreground">
-            Add and manage your trip expenses.
+            Log all your trip expenses here. Dates are automatically inferred.
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog
+          open={isAddDialogOpen}
+          onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) resetForms();
+          }}
+        >
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -357,9 +492,11 @@ export default function ExpensesPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Add {activeTab.replace(/([A-Z])/g, ' $1').trim()}</DialogTitle>
+              <DialogTitle>
+                {expenseToEdit ? "Edit Expense" : `Add ${activeTab.replace(/([A-Z])/g, ' $1').trim()}`}
+              </DialogTitle>
               <DialogDescription>
-                Enter the details for the new expense.
+                {expenseToEdit ? "Update the details for this expense." : "Enter the details for the new expense."}
               </DialogDescription>
             </DialogHeader>
 
@@ -423,9 +560,11 @@ export default function ExpensesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Split Mode</Label>
+                  <Label className="flex items-center gap-2">
+                    Split Mode
+                  </Label>
                   <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="radio"
                         checked={newDailySharedExpense.splitMode === "dailyOccupancy"}
@@ -433,8 +572,9 @@ export default function ExpensesPage() {
                         className="accent-primary-600"
                       />
                       Daily Occupancy
+                      <InfoTooltip content="Cost is divided based on the number of days each traveler was present." />
                     </label>
-                    <label className="flex items-center gap-2 text-sm">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="radio"
                         checked={newDailySharedExpense.splitMode === "stayWeighted"}
@@ -442,12 +582,13 @@ export default function ExpensesPage() {
                         className="accent-primary-600"
                       />
                       Even-day Split
+                      <InfoTooltip content="Cost is divided equally among all selected travelers." />
                     </label>
                   </div>
                 </div>
                 {error && <div className="text-sm text-destructive">{error}</div>}
                 <DialogFooter>
-                  <Button type="submit">Add Expense</Button>
+                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
                 </DialogFooter>
               </form>
             )}
@@ -492,9 +633,28 @@ export default function ExpensesPage() {
                     </Select>
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Date Range</Label>
+                  <DatePickerWithRange
+                    date={{
+                      from: newDailyPersonalExpense.startDate ? parseISO(newDailyPersonalExpense.startDate) : undefined,
+                      to: newDailyPersonalExpense.endDate ? parseISO(newDailyPersonalExpense.endDate) : undefined,
+                    }}
+                    onDateChange={(range) => {
+                      if (range?.from && range?.to) {
+                        setNewDailyPersonalExpense({
+                          ...newDailyPersonalExpense,
+                          startDate: format(range.from, "yyyy-MM-dd"),
+                          endDate: format(range.to, "yyyy-MM-dd"),
+                        });
+                      }
+                    }}
+                    className="w-full"
+                  />
+                </div>
                 {error && <div className="text-sm text-destructive">{error}</div>}
                 <DialogFooter>
-                  <Button type="submit">Add Expense</Button>
+                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
                 </DialogFooter>
               </form>
             )}
@@ -541,7 +701,7 @@ export default function ExpensesPage() {
                 </div>
                 {error && <div className="text-sm text-destructive">{error}</div>}
                 <DialogFooter>
-                  <Button type="submit">Add Expense</Button>
+                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
                 </DialogFooter>
               </form>
             )}
@@ -588,7 +748,7 @@ export default function ExpensesPage() {
                 </div>
                 {error && <div className="text-sm text-destructive">{error}</div>}
                 <DialogFooter>
-                  <Button type="submit">Add Expense</Button>
+                  <Button type="submit">{expenseToEdit ? "Update Expense" : "Add Expense"}</Button>
                 </DialogFooter>
               </form>
             )}
@@ -596,7 +756,7 @@ export default function ExpensesPage() {
         </Dialog>
       </div>
 
-      <Instructions text={instructions} />
+
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
@@ -625,14 +785,24 @@ export default function ExpensesPage() {
                         {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyShared", name: expense.name })}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => handleEditExpense(expense, "dailyShared")}
+                      >
+                        <Edit2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyShared", name: expense.name })}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))
@@ -655,15 +825,28 @@ export default function ExpensesPage() {
                       <p className="text-sm text-muted-foreground">
                         {expense.currency} {expense.dailyCost.toFixed(2)} / day
                       </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
+                      </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyPersonal", name: expense.name })}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => handleEditExpense(expense, "dailyPersonal")}
+                      >
+                        <Edit2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyPersonal", name: expense.name })}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))
@@ -687,14 +870,24 @@ export default function ExpensesPage() {
                         {expense.currency} {expense.totalCost.toFixed(2)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimeShared", name: expense.name })}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => handleEditExpense(expense, "oneTimeShared")}
+                      >
+                        <Edit2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimeShared", name: expense.name })}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))
@@ -718,14 +911,24 @@ export default function ExpensesPage() {
                         {expense.currency} {expense.totalCost.toFixed(2)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimePersonal", name: expense.name })}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => handleEditExpense(expense, "oneTimePersonal")}
+                      >
+                        <Edit2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimePersonal", name: expense.name })}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))
