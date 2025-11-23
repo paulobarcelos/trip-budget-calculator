@@ -1,19 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import React from 'react';
 import UsagePage from '../page';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { TripState } from '@/types';
 
-const day = { id: '2024-01-01', date: '2024-01-01' };
-
 const baseTripState: TripState = {
-  version: 1,
-  startDate: '2024-01-01',
-  endDate: '2024-01-03',
+  version: 3,
   travelers: [
-    { id: 't1', name: 'Alice', startDate: '2024-01-01', endDate: '2024-01-03' },
-    { id: 't2', name: 'Bob', startDate: '2024-01-01', endDate: '2024-01-03' },
+    { id: 't1', name: 'Alice' },
+    { id: 't2', name: 'Bob' },
   ],
   dailySharedExpenses: [
     {
@@ -29,12 +25,12 @@ const baseTripState: TripState = {
   dailyPersonalExpenses: [],
   oneTimeSharedExpenses: [],
   oneTimePersonalExpenses: [],
-  days: [day],
+  days: [],
   usageCosts: {
     oneTimeShared: {},
     oneTimePersonal: {},
     days: {
-      [day.id]: {
+      '2024-01-01': {
         dailyShared: { hotel: ['t1'] },
         dailyPersonal: {},
       },
@@ -56,6 +52,14 @@ vi.mock('@/hooks/useLocalStorage', () => {
   };
 });
 
+// Mock ResizeObserver
+class ResizeObserver {
+  observe() { }
+  unobserve() { }
+  disconnect() { }
+}
+global.ResizeObserver = ResizeObserver;
+
 describe('UsagePage daily shared section', () => {
   beforeEach(() => {
     tripState = structuredClone(baseTripState);
@@ -64,34 +68,41 @@ describe('UsagePage daily shared section', () => {
   it('shows expense details and allows toggling travelers', async () => {
     renderWithProviders(<UsagePage />);
 
-    // Click on the day button to open the sheet
-    fireEvent.click(screen.getByText('Jan 1'));
+    // The calendar should be visible.
+    // We need to find the day '1' which corresponds to Jan 1st.
+    // Since the trip starts in Jan 2024, the calendar should default to that month or we might need to navigate.
+    // However, UsageCalendar defaults to trip start date.
 
-    // Wait for sheet to open
-    await screen.findByText('Hotel');
+    // Find the button for day 1.
+    // There might be multiple "1"s (e.g. Feb 1st if visible), so we take the first one which should be Jan 1st.
+    const dayButtons = screen.getAllByText('1', { selector: 'button' });
+    const dayButton = dayButtons[0];
+    fireEvent.click(dayButton);
 
-    // expect(screen.getByText(/Even-day split/i)).toBeInTheDocument(); // Removed from UI
+    // Wait for dialog to open
+    const dialog = await screen.findByRole('dialog');
+
+    // Check for expense name
+    expect(within(dialog).getByText('Hotel')).toBeInTheDocument();
 
     // Alice is selected, so she should be visible as a badge
-    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(within(dialog).getByText('Alice')).toBeInTheDocument();
 
     // Bob is NOT selected, so he should NOT be visible as a badge yet
-    expect(screen.queryByText('Bob')).not.toBeInTheDocument();
+    // Note: Bob might be in the list if the selector is open, but it shouldn't be open yet.
+    expect(within(dialog).queryByText('Bob')).not.toBeInTheDocument();
 
     // Open the selector
-    const trigger = screen.getByRole('combobox');
+    const trigger = within(dialog).getByRole('combobox');
     fireEvent.click(trigger);
 
     // Select Bob from the list
-    // CommandItem usually renders as a div, so we search by text
     const bobOption = await screen.findByText('Bob');
     fireEvent.click(bobOption);
 
-    // Now Bob should be visible as a badge (we might need to wait if there's a transition, but usually it's instant in tests)
-    // However, since Bob is also in the list (which might still be open), getByText might return multiple.
-    // The badge is inside the trigger. The option is inside the popover.
-    // We can check if the badge exists specifically.
-    // But simpler: just check if Bob is in the document.
-    expect(screen.getAllByText('Bob').length).toBeGreaterThan(0);
+    // Now Bob should be visible as a badge
+    // We check inside the dialog to be sure
+    expect(within(dialog).getAllByText('Bob').length).toBeGreaterThan(0);
   });
 });
+

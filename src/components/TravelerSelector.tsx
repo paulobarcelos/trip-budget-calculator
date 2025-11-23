@@ -103,7 +103,7 @@ export function TravelerSelector({
                                             onClick={handleCreate}
                                         >
                                             <Plus className="mr-2 h-4 w-4" />
-                                            Create "{inputValue}"
+                                            Create &quot;{inputValue}&quot;
                                         </Button>
                                     )}
                                 </div>

@@ -1,562 +1,373 @@
 "use client";
 
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { TripState, Day } from "@/types";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { TripState, Traveler } from "@/types";
 import { initialTripState } from "@/constants/initialState";
-import { calculateDailyCost, getDayCount, sortTravelers } from "@/utils/tripStateUpdates";
-import { Instructions } from "@/components/Instructions";
-import { instructions } from "./instructions";
 import { migrateState } from "@/utils/stateMigrations";
 import { decodeState } from "@/utils/stateEncoding";
+import { UsageCalendar } from "@/components/UsageCalendar";
+import { useState, useMemo } from "react";
+import { format, parseISO, isWithinInterval } from "date-fns";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { format, parseISO, isSameDay } from "date-fns";
-import { CalendarDays, Check, Copy, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TravelerSelector } from "@/components/TravelerSelector";
+import { sortTravelers } from "@/utils/tripStateUpdates";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 export default function UsagePage() {
-  const router = useRouter();
-  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>(
+  const [tripState, setTripState] = useLocalStorage<TripState>(
     "tripState",
     initialTripState,
     {
       migrate: migrateState,
       decodeFromUrl: decodeState,
-    },
+    }
   );
 
-  const [selectedDay, setSelectedDay] = useState<Day | null>(null);
-  const [activeTab, setActiveTab] = useState("daily");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const isDateWithinRange = (date: string, start: string, end: string) =>
-    Boolean(date && start && end) && date >= start && date < end;
+  const handleDaySelect = (date: Date) => {
+    setSelectedDate(date);
+    setIsDialogOpen(true);
+  };
 
-  if (!isInitialized) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Usage
-        </h1>
-        <div className="animate-pulse space-y-4">
-          <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
-          <div className="h-64 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
-        </div>
-      </div>
+  const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+
+  // Get expenses active on the selected date
+  const activeDailyShared = useMemo(() => {
+    if (!selectedDate) return [];
+    return tripState.dailySharedExpenses.filter((e) =>
+      isWithinInterval(selectedDate, {
+        start: parseISO(e.startDate),
+        end: parseISO(e.endDate),
+      })
     );
-  }
+  }, [tripState.dailySharedExpenses, selectedDate]);
 
-  const handleCopyFromPreviousDay = (currentDayIndex: number) => {
-    setTripState((prev) => {
-      const previousDay = prev.days[currentDayIndex - 1];
-      if (!previousDay) return prev;
-      const previousDayExpenses = prev.usageCosts.days[previousDay.id];
-      if (!previousDayExpenses) return prev;
+  const activeDailyPersonal = useMemo(() => {
+    if (!selectedDate) return [];
+    return tripState.dailyPersonalExpenses.filter((e) =>
+      isWithinInterval(selectedDate, {
+        start: parseISO(e.startDate),
+        end: parseISO(e.endDate),
+      })
+    );
+  }, [tripState.dailyPersonalExpenses, selectedDate]);
 
-      const cloneRecord = (record: Record<string, string[]> = {}) =>
-        Object.fromEntries(
-          Object.entries(record).map(([expenseId, travelerIds]) => [
-            expenseId,
-            [...travelerIds],
-          ])
-        );
+  const handleUpdateDailyUsage = (
+    expenseId: string,
+    type: "dailyShared" | "dailyPersonal",
+    travelerId: string,
+    isSelected: boolean
+  ) => {
+    if (!dateStr) return;
 
-      const clonedDailyShared = cloneRecord(previousDayExpenses.dailyShared);
-      const clonedDailyPersonal = cloneRecord(previousDayExpenses.dailyPersonal);
+    const currentDayUsage = tripState.usageCosts.days[dateStr] || {
+      dailyShared: {},
+      dailyPersonal: {},
+    };
 
-      const filterForDay = (record: Record<string, string[]>) =>
-        Object.fromEntries(
-          Object.entries(record).map(([expenseId, travelerIds]) => [
-            expenseId,
-            travelerIds.filter((travelerId) => {
-              const traveler = prev.travelers.find((t) => t.id === travelerId);
-              const currentDay = prev.days[currentDayIndex];
-              return (
-                traveler &&
-                isDateWithinRange(
-                  currentDay.date,
-                  traveler.startDate,
-                  traveler.endDate
-                )
-              );
-            }),
-          ])
-        );
+    const currentTravelers =
+      currentDayUsage[type][expenseId] || [];
 
-      const filteredDailyShared = filterForDay(clonedDailyShared);
-      const filteredDailyPersonal = filterForDay(clonedDailyPersonal);
+    let newTravelers: string[];
+    if (isSelected) {
+      newTravelers = [...currentTravelers, travelerId];
+    } else {
+      newTravelers = currentTravelers.filter((id) => id !== travelerId);
+    }
 
-      const newUsageCosts = {
-        ...prev.usageCosts,
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
         days: {
-          ...prev.usageCosts.days,
-          [prev.days[currentDayIndex].id]: {
-            dailyShared: filteredDailyShared,
-            dailyPersonal: filteredDailyPersonal,
-          },
-        },
-      };
-
-      return { ...prev, usageCosts: newUsageCosts };
-    });
-  };
-
-  const toggleTraveler = (
-    dayId: string,
-    type: "dailyShared" | "dailyPersonal",
-    expenseId: string,
-    travelerId: string,
-    checked: boolean
-  ) => {
-    setTripState((prev) => {
-      const currentList =
-        prev.usageCosts.days[dayId]?.[type]?.[expenseId] ?? [];
-
-      let newList;
-      if (checked) {
-        newList = [...currentList, travelerId];
-      } else {
-        newList = currentList.filter((id) => id !== travelerId);
-      }
-
-      return {
-        ...prev,
-        usageCosts: {
-          ...prev.usageCosts,
-          days: {
-            ...prev.usageCosts.days,
-            [dayId]: {
-              ...(prev.usageCosts.days[dayId] ?? {}),
-              [type]: {
-                ...(prev.usageCosts.days[dayId]?.[type] ?? {}),
-                [expenseId]: newList,
-              },
+          ...tripState.usageCosts.days,
+          [dateStr]: {
+            ...currentDayUsage,
+            [type]: {
+              ...currentDayUsage[type],
+              [expenseId]: newTravelers,
             },
           },
         },
-      };
+      },
     });
   };
 
-  const toggleOneTimeTraveler = (
-    type: "oneTimeShared" | "oneTimePersonal",
+  const handleUpdateOneTimeUsage = (
     expenseId: string,
-    travelerId: string,
-    checked: boolean
-  ) => {
-    setTripState((prev) => {
-      const currentList = prev.usageCosts[type][expenseId] ?? [];
-
-      let newList;
-      if (checked) {
-        newList = [...currentList, travelerId];
-      } else {
-        newList = currentList.filter((id) => id !== travelerId);
-      }
-
-      return {
-        ...prev,
-        usageCosts: {
-          ...prev.usageCosts,
-          [type]: {
-            ...prev.usageCosts[type],
-            [expenseId]: newList,
-          },
-        },
-      };
-    });
-  };
-
-  const handleCreateTraveler = (
-    name: string,
-    dayId: string,
-    type: "dailyShared" | "dailyPersonal",
-    expenseId: string
-  ) => {
-    const newTraveler = {
-      id: crypto.randomUUID(),
-      name,
-      startDate: tripState.startDate,
-      endDate: tripState.endDate,
-    };
-
-    setTripState((prev) => {
-      const updatedTravelers = sortTravelers([...prev.travelers, newTraveler]);
-
-      const currentList = prev.usageCosts.days[dayId]?.[type]?.[expenseId] ?? [];
-      const newList = [...currentList, newTraveler.id];
-
-      return {
-        ...prev,
-        travelers: updatedTravelers,
-        usageCosts: {
-          ...prev.usageCosts,
-          days: {
-            ...prev.usageCosts.days,
-            [dayId]: {
-              ...(prev.usageCosts.days[dayId] ?? {}),
-              [type]: {
-                ...(prev.usageCosts.days[dayId]?.[type] ?? {}),
-                [expenseId]: newList,
-              },
-            },
-          },
-        },
-      };
-    });
-  };
-
-  const handleCreateTravelerForOneTime = (
-    name: string,
     type: "oneTimeShared" | "oneTimePersonal",
-    expenseId: string
+    travelerId: string,
+    isSelected: boolean
   ) => {
-    const newTraveler = {
+    const currentUsage = tripState.usageCosts[type][expenseId] || [];
+
+    let newTravelers: string[];
+    if (isSelected) {
+      newTravelers = [...currentUsage, travelerId];
+    } else {
+      newTravelers = currentUsage.filter((id) => id !== travelerId);
+    }
+
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
+        [type]: {
+          ...tripState.usageCosts[type],
+          [expenseId]: newTravelers,
+        },
+      },
+    });
+  };
+
+  const handleCreateTraveler = (name: string) => {
+    const newTraveler: Traveler = {
       id: crypto.randomUUID(),
       name,
-      startDate: tripState.startDate,
-      endDate: tripState.endDate,
+    };
+    setTripState({
+      ...tripState,
+      travelers: sortTravelers([...tripState.travelers, newTraveler]),
+    });
+  };
+
+  const handleCopyPreviousDay = () => {
+    if (!selectedDate || !dateStr) return;
+
+    const prevDate = new Date(selectedDate);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = format(prevDate, "yyyy-MM-dd");
+
+    const prevDayUsage = tripState.usageCosts.days[prevDateStr];
+    if (!prevDayUsage) return;
+
+    const currentDayUsage = tripState.usageCosts.days[dateStr] || {
+      dailyShared: {},
+      dailyPersonal: {},
     };
 
-    setTripState((prev) => {
-      const updatedTravelers = sortTravelers([...prev.travelers, newTraveler]);
+    // Merge previous day's usage into current day
+    // Only copy for expenses that are active on the current day
+    const newDailyShared = { ...currentDayUsage.dailyShared };
+    activeDailyShared.forEach((expense) => {
+      if (prevDayUsage.dailyShared[expense.id]) {
+        newDailyShared[expense.id] = prevDayUsage.dailyShared[expense.id];
+      }
+    });
 
-      const currentList = prev.usageCosts[type][expenseId] ?? [];
-      const newList = [...currentList, newTraveler.id];
+    const newDailyPersonal = { ...currentDayUsage.dailyPersonal };
+    activeDailyPersonal.forEach((expense) => {
+      if (prevDayUsage.dailyPersonal[expense.id]) {
+        newDailyPersonal[expense.id] = prevDayUsage.dailyPersonal[expense.id];
+      }
+    });
 
-      return {
-        ...prev,
-        travelers: updatedTravelers,
-        usageCosts: {
-          ...prev.usageCosts,
-          [type]: {
-            ...prev.usageCosts[type],
-            [expenseId]: newList,
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
+        days: {
+          ...tripState.usageCosts.days,
+          [dateStr]: {
+            dailyShared: newDailyShared,
+            dailyPersonal: newDailyPersonal,
           },
         },
-      };
+      },
     });
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex flex-col gap-2">
+      <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-          Usage
+          Usage Tracking
         </h1>
         <p className="text-muted-foreground">
-          Assign expenses to travelers for each day or item.
+          Assign expenses to travelers based on their presence.
         </p>
       </div>
 
-      <Instructions text={instructions} />
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs defaultValue="daily" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="daily">Daily Expenses</TabsTrigger>
+          <TabsTrigger value="daily">Daily Usage</TabsTrigger>
           <TabsTrigger value="onetime">One-time Expenses</TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Daily Usage Calendar</CardTitle>
-              <CardDescription>
-                Select a day to assign travelers to daily expenses.
-              </CardDescription>
+              <CardTitle>Calendar</CardTitle>
             </CardHeader>
             <CardContent>
-              {tripState.days.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                  <p className="text-muted-foreground">No days in the trip yet.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {tripState.days.map((day) => {
-                    const dayUsage = tripState.usageCosts.days[day.id];
-                    const hasUsage =
-                      dayUsage &&
-                      (Object.values(dayUsage.dailyShared).some(
-                        (ids) => ids.length > 0
-                      ) ||
-                        Object.values(dayUsage.dailyPersonal).some(
-                          (ids) => ids.length > 0
-                        ));
-
-                    return (
-                      <Button
-                        key={day.id}
-                        variant={hasUsage ? "default" : "outline"}
-                        className={cn(
-                          "h-24 flex flex-col items-center justify-center gap-2 relative",
-                          hasUsage ? "bg-primary/10 text-primary hover:bg-primary/20 border-primary/20" : ""
-                        )}
-                        onClick={() => setSelectedDay(day)}
-                      >
-                        <span className="text-lg font-semibold">
-                          {format(parseISO(day.date), "MMM d")}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(parseISO(day.date), "EEE")}
-                        </span>
-                        {hasUsage && (
-                          <div className="absolute top-2 right-2">
-                            <Check className="h-4 w-4" />
-                          </div>
-                        )}
-                      </Button>
-                    );
-                  })}
-                </div>
-              )}
+              <UsageCalendar tripState={tripState} onDaySelect={handleDaySelect} />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="onetime" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>One-time Shared Expenses</CardTitle>
-              <CardDescription>
-                Select travelers who share these expenses.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {tripState.oneTimeSharedExpenses.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No one-time shared expenses.
-                </p>
-              ) : (
-                tripState.oneTimeSharedExpenses.map((expense) => (
-                  <div key={expense.id} className="space-y-3 pb-6 border-b last:border-0 last:pb-0">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">{expense.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {expense.currency} {expense.totalCost.toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
+        <TabsContent value="onetime" className="space-y-4">
+          <div className="grid gap-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Shared Expenses</h3>
+              {tripState.oneTimeSharedExpenses.length === 0 && (
+                <p className="text-muted-foreground text-sm">No one-time shared expenses.</p>
+              )}
+              {tripState.oneTimeSharedExpenses.map((expense) => (
+                <Card key={expense.id}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-medium flex justify-between">
+                      {expense.name}
+                      <Badge variant="outline">
+                        {expense.currency} {expense.totalCost}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <TravelerSelector
                       travelers={tripState.travelers}
                       selectedTravelerIds={
-                        tripState.usageCosts.oneTimeShared[expense.id] ?? []
+                        tripState.usageCosts.oneTimeShared[expense.id] || []
                       }
-                      onToggleTraveler={(travelerId, selected) =>
-                        toggleOneTimeTraveler(
-                          "oneTimeShared",
-                          expense.id,
-                          travelerId,
-                          selected
-                        )
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateOneTimeUsage(expense.id, "oneTimeShared", tId, selected)
                       }
-                      onCreateTraveler={(name) =>
-                        handleCreateTravelerForOneTime(
-                          name,
-                          "oneTimeShared",
-                          expense.id
-                        )
-                      }
+                      onCreateTraveler={handleCreateTraveler}
                     />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>One-time Personal Expenses</CardTitle>
-              <CardDescription>
-                Select travelers who incurred these expenses.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {tripState.oneTimePersonalExpenses.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No one-time personal expenses.
-                </p>
-              ) : (
-                tripState.oneTimePersonalExpenses.map((expense) => (
-                  <div key={expense.id} className="space-y-3 pb-6 border-b last:border-0 last:pb-0">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">{expense.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {expense.currency} {expense.totalCost.toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Personal Expenses</h3>
+              {tripState.oneTimePersonalExpenses.length === 0 && (
+                <p className="text-muted-foreground text-sm">No one-time personal expenses.</p>
+              )}
+              {tripState.oneTimePersonalExpenses.map((expense) => (
+                <Card key={expense.id}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-medium flex justify-between">
+                      {expense.name}
+                      <Badge variant="outline">
+                        {expense.currency} {expense.totalCost}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <TravelerSelector
                       travelers={tripState.travelers}
                       selectedTravelerIds={
-                        tripState.usageCosts.oneTimePersonal[expense.id] ?? []
+                        tripState.usageCosts.oneTimePersonal[expense.id] || []
                       }
-                      onToggleTraveler={(travelerId, selected) =>
-                        toggleOneTimeTraveler(
-                          "oneTimePersonal",
-                          expense.id,
-                          travelerId,
-                          selected
-                        )
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateOneTimeUsage(expense.id, "oneTimePersonal", tId, selected)
                       }
-                      onCreateTraveler={(name) =>
-                        handleCreateTravelerForOneTime(
-                          name,
-                          "oneTimePersonal",
-                          expense.id
-                        )
-                      }
+                      onCreateTraveler={handleCreateTraveler}
                     />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end pt-4">
-        <Button
-          onClick={() => router.push("/budget")}
-          size="lg"
-          className="w-full sm:w-auto"
-        >
-          Continue to Budget
-        </Button>
-      </div>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Usage for {selectedDate ? format(selectedDate, "MMMM d, yyyy") : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Select who was present for each expense on this day.
+            </DialogDescription>
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyPreviousDay}
+                disabled={!selectedDate}
+              >
+                Copy from Previous Day
+              </Button>
+            </div>
+          </DialogHeader>
 
-      <Sheet open={selectedDay !== null} onOpenChange={(open) => !open && setSelectedDay(null)}>
-        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>
-              {selectedDay && format(parseISO(selectedDay.date), "EEEE, MMMM d, yyyy")}
-            </SheetTitle>
-            <SheetDescription>
-              Assign travelers to expenses for this day.
-            </SheetDescription>
-          </SheetHeader>
-
-          {selectedDay && (
-            <div className="mt-6 space-y-8 pb-10">
-              {/* Copy Button */}
-              {tripState.days.findIndex(d => d.id === selectedDay.id) > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => handleCopyFromPreviousDay(tripState.days.findIndex(d => d.id === selectedDay.id))}
-                >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy from previous day
-                </Button>
-              )}
-
-              {/* Daily Shared */}
+          <ScrollArea className="flex-1 pr-4 -mr-4">
+            <div className="space-y-6 py-4">
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Users className="h-5 w-5" /> Shared Expenses
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                  Daily Shared Expenses
                 </h3>
-                {tripState.dailySharedExpenses.filter(e =>
-                  isDateWithinRange(selectedDay.date, e.startDate, e.endDate)
-                ).length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No shared expenses active today.</p>
-                ) : (
-                  tripState.dailySharedExpenses
-                    .filter(e => isDateWithinRange(selectedDay.date, e.startDate, e.endDate))
-                    .map(expense => (
-                      <Card key={expense.id}>
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-base">{expense.name}</CardTitle>
-                          <CardDescription>
-                            {expense.currency} {calculateDailyCost(expense.totalCost, expense.startDate, expense.endDate).toFixed(2)} / day
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2">
-                          <TravelerSelector
-                            travelers={tripState.travelers.filter(t =>
-                              isDateWithinRange(selectedDay.date, t.startDate, t.endDate)
-                            )}
-                            selectedTravelerIds={
-                              tripState.usageCosts.days[selectedDay.id]?.dailyShared[expense.id] ?? []
-                            }
-                            onToggleTraveler={(travelerId, selected) =>
-                              toggleTraveler(selectedDay.id, "dailyShared", expense.id, travelerId, selected)
-                            }
-                            onCreateTraveler={(name) =>
-                              handleCreateTraveler(name, selectedDay.id, "dailyShared", expense.id)
-                            }
-                          />
-                        </CardContent>
-                      </Card>
-                    ))
+                {activeDailyShared.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No active shared expenses for this day.</p>
                 )}
+                {activeDailyShared.map((expense) => (
+                  <div key={expense.id} className="space-y-2 border rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{expense.name}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {expense.currency} {expense.totalCost} (Total)
+                      </Badge>
+                    </div>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.days[dateStr]?.dailyShared[expense.id] || []
+                      }
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateDailyUsage(expense.id, "dailyShared", tId, selected)
+                      }
+                      onCreateTraveler={handleCreateTraveler}
+                    />
+                  </div>
+                ))}
               </div>
 
-              {/* Daily Personal */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Users className="h-5 w-5" /> Personal Expenses
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                  Daily Personal Expenses
                 </h3>
-                {tripState.dailyPersonalExpenses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No personal expenses defined.</p>
-                ) : (
-                  tripState.dailyPersonalExpenses.map(expense => (
-                    <Card key={expense.id}>
-                      <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-base">{expense.name}</CardTitle>
-                        <CardDescription>
-                          {expense.currency} {expense.dailyCost.toFixed(2)} / day
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2">
-                        <TravelerSelector
-                          travelers={tripState.travelers.filter(t =>
-                            isDateWithinRange(selectedDay.date, t.startDate, t.endDate)
-                          )}
-                          selectedTravelerIds={
-                            tripState.usageCosts.days[selectedDay.id]?.dailyPersonal[expense.id] ?? []
-                          }
-                          onToggleTraveler={(travelerId, selected) =>
-                            toggleTraveler(selectedDay.id, "dailyPersonal", expense.id, travelerId, selected)
-                          }
-                          onCreateTraveler={(name) =>
-                            handleCreateTraveler(name, selectedDay.id, "dailyPersonal", expense.id)
-                          }
-                        />
-                      </CardContent>
-                    </Card>
-                  ))
+                {activeDailyPersonal.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No active personal expenses for this day.</p>
                 )}
+                {activeDailyPersonal.map((expense) => (
+                  <div key={expense.id} className="space-y-2 border rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{expense.name}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {expense.currency} {expense.dailyCost}/day
+                      </Badge>
+                    </div>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.days[dateStr]?.dailyPersonal[expense.id] || []
+                      }
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateDailyUsage(expense.id, "dailyPersonal", tId, selected)
+                      }
+                      onCreateTraveler={handleCreateTraveler}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
-          )}
-        </SheetContent>
-      </Sheet>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
