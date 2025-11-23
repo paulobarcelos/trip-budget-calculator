@@ -1,8 +1,6 @@
 export interface Traveler {
   id: string;
   name: string;
-  startDate: string;
-  endDate: string;
 }
 
 export interface BaseExpense {
@@ -22,6 +20,8 @@ export interface DailySharedExpense extends BaseExpense {
 
 export interface DailyPersonalExpense extends BaseExpense {
   dailyCost: number;
+  startDate: string;
+  endDate: string;
 }
 
 export interface OneTimeSharedExpense extends BaseExpense {
@@ -50,8 +50,6 @@ export interface UsageCosts {
 
 export interface TripState {
   version: TripStateVersion;
-  startDate: string;
-  endDate: string;
   travelers: Traveler[];
   dailySharedExpenses: DailySharedExpense[];
   dailyPersonalExpenses: DailyPersonalExpense[];
@@ -62,5 +60,5 @@ export interface TripState {
   displayCurrency: string;
 }
 
-export const TripStateVersion = 1 as const;
+export const TripStateVersion = 3 as const;
 export type TripStateVersion = typeof TripStateVersion;

@@ -29,10 +29,8 @@ const sanitizeTravelers = (value: unknown): Traveler[] => {
       if (!isRecord(traveler)) return null;
       const id = toString(traveler.id);
       const name = toString(traveler.name);
-      const startDate = toString(traveler.startDate);
-      const endDate = toString(traveler.endDate);
-      if (!id || !name || !startDate || !endDate) return null;
-      return { id, name, startDate, endDate };
+      if (!id || !name) return null;
+      return { id, name };
     })
     .filter((traveler): traveler is Traveler => traveler !== null);
 };
@@ -58,7 +56,11 @@ const sanitizeDailySharedExpenses = (value: unknown): DailySharedExpense[] => {
     .filter((expense): expense is DailySharedExpense => expense !== null);
 };
 
-const sanitizeDailyPersonalExpenses = (value: unknown): DailyPersonalExpense[] => {
+const sanitizeDailyPersonalExpenses = (
+  value: unknown,
+  defaultStartDate: string,
+  defaultEndDate: string,
+): DailyPersonalExpense[] => {
   if (!Array.isArray(value)) return [];
   return value
     .map((expense) => {
@@ -67,8 +69,12 @@ const sanitizeDailyPersonalExpenses = (value: unknown): DailyPersonalExpense[] =
       const name = toString(expense.name);
       const currency = toString(expense.currency);
       const dailyCost = toNumber(expense.dailyCost);
-      if (!id || !name || !currency || dailyCost === null) return null;
-      return { id, name, currency, dailyCost };
+      const startDate = toString(expense.startDate) ?? defaultStartDate;
+      const endDate = toString(expense.endDate) ?? defaultEndDate;
+
+      if (!id || !name || !currency || dailyCost === null || !startDate || !endDate)
+        return null;
+      return { id, name, currency, dailyCost, startDate, endDate };
     })
     .filter((expense): expense is DailyPersonalExpense => expense !== null);
 };
@@ -235,20 +241,35 @@ export function migrateState(raw: unknown): TripState {
   }
 
   const version = toNumber(raw.version);
-  const startDate = toString(raw.startDate);
-  const endDate = toString(raw.endDate);
   const displayCurrency = toString(raw.displayCurrency);
+
+  // For migration from v2 to v3, we might need to preserve dates for expenses if they exist
+  // but we no longer need trip level dates.
+  // However, sanitizeDailyPersonalExpenses still needs default dates if they are missing on the expense itself.
+  // We can try to extract them from the raw state if available, or just use empty strings/defaults.
+  // Since we are removing trip dates, we should probably just use what's on the expense or fallback.
+  // But wait, in v2 expenses MIGHT NOT have dates if they were migrated from v1 and relied on trip dates?
+  // Actually v2 added dates to DailyPersonalExpense. DailySharedExpense already had them.
+  // So we should be fine using what's on the expense.
+  // But sanitizeDailyPersonalExpenses signature requires defaults.
+  // Let's grab them from raw if they exist, just in case.
+  const rawStartDate = toString(raw.startDate) ?? "";
+  const rawEndDate = toString(raw.endDate) ?? "";
 
   const migrated: TripState = {
     ...base,
     version: TripStateVersion,
-    startDate: startDate ?? base.startDate,
-    endDate: endDate ?? base.endDate,
     travelers: sanitizeTravelers(raw.travelers),
     dailySharedExpenses: sanitizeDailySharedExpenses(raw.dailySharedExpenses),
-    dailyPersonalExpenses: sanitizeDailyPersonalExpenses(raw.dailyPersonalExpenses),
+    dailyPersonalExpenses: sanitizeDailyPersonalExpenses(
+      raw.dailyPersonalExpenses,
+      rawStartDate,
+      rawEndDate,
+    ),
     oneTimeSharedExpenses: sanitizeOneTimeSharedExpenses(raw.oneTimeSharedExpenses),
-    oneTimePersonalExpenses: sanitizeOneTimePersonalExpenses(raw.oneTimePersonalExpenses),
+    oneTimePersonalExpenses: sanitizeOneTimePersonalExpenses(
+      raw.oneTimePersonalExpenses,
+    ),
     days: sanitizeDays(raw.days),
     usageCosts: sanitizeUsageCosts(raw.usageCosts),
     displayCurrency: displayCurrency ?? base.displayCurrency,

@@ -39,7 +39,7 @@ describe('useLocalStorage', () => {
       startDate: '2024-01-01',
       endDate: '2024-01-03',
       travelers: [
-        { id: 't1', name: 'Alex', startDate: '2024-01-01', endDate: '2024-01-03' },
+        { id: 't1', name: 'Alex' },
       ],
       dailySharedExpenses: [
         {
@@ -70,9 +70,7 @@ describe('useLocalStorage', () => {
   it('decodes state from URL, writes to localStorage, and strips the param', async () => {
     const sharableState: TripState = {
       ...initialTripState,
-      startDate: '2024-02-01',
-      endDate: '2024-02-05',
-      travelers: [{ id: 't1', name: 'Jamie', startDate: '2024-02-01', endDate: '2024-02-05' }],
+      travelers: [{ id: 't1', name: 'Jamie' }],
     };
 
     const encoded = encodeState(sharableState);
@@ -88,8 +86,7 @@ describe('useLocalStorage', () => {
     await waitFor(() => expect(result.current[2]).toBe(true));
 
     const [value] = result.current;
-    expect(value.startDate).toBe('2024-02-01');
-    expect(value.endDate).toBe('2024-02-05');
+    expect(value.travelers[0].name).toBe('Jamie');
     expect(localStorage.getItem('tripState')).not.toBeNull();
     expect(window.location.search).toBe('');
     expect(window.location.hash).toBe('');
