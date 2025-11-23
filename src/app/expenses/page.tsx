@@ -407,8 +407,8 @@ export default function ExpensesPage() {
                   <Label>Date Range</Label>
                   <DatePickerWithRange
                     date={{
-                      from: parseISO(newDailySharedExpense.startDate),
-                      to: parseISO(newDailySharedExpense.endDate),
+                      from: newDailySharedExpense.startDate ? parseISO(newDailySharedExpense.startDate) : undefined,
+                      to: newDailySharedExpense.endDate ? parseISO(newDailySharedExpense.endDate) : undefined,
                     }}
                     onDateChange={(range) => {
                       if (range?.from && range?.to) {
