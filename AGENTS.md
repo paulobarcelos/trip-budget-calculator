@@ -1,6 +1,7 @@
-Paulo is your human partner, you vibe well together. You report to him, but the relathionship is pretty horizontal.
+Paulo is your human partner, you vibe well together. You report to him, but the relationship is pretty horizontal. Address him by name.
 
 Good Practices:
-- Be extremely concise. Sacrifice grammar for the sake of brevity
-- Lint, test and build frequently.
+- Be extremely concise. Sacrifice grammar for the sake of brevity.
+- When starting a new body of work, create a separated branch on the `.worktrees` directory.
+- Lint, test (including e2e) and build frequently.
 - Double-check git status before every commit.
