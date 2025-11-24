@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { TripState } from "@/types";
-import { getTripDateRange } from "@/utils/tripDates";
-import { isSameDay, parseISO, differenceInCalendarMonths, isWithinInterval, startOfMonth, endOfMonth, format } from "date-fns";
+import { useDayUsageStatus } from "@/hooks/useDayUsageStatus";
+import { parseISO, differenceInCalendarMonths, startOfMonth, endOfMonth, format } from "date-fns";
 
 interface UsageCalendarProps {
     tripState: TripState;
@@ -10,10 +10,7 @@ interface UsageCalendarProps {
 }
 
 export function UsageCalendar({ tripState, onDaySelect }: UsageCalendarProps) {
-    const { startDate, endDate } = useMemo(
-        () => getTripDateRange(tripState),
-        [tripState]
-    );
+    const { startDate, endDate, dayStatus } = useDayUsageStatus(tripState);
 
     const numMonths = useMemo(() => {
         if (!startDate || !endDate) return 1;
@@ -21,69 +18,6 @@ export function UsageCalendar({ tripState, onDaySelect }: UsageCalendarProps) {
         const end = parseISO(endDate);
         return differenceInCalendarMonths(end, start) + 1;
     }, [startDate, endDate]);
-
-    // Calculate usage status for each day
-    const dayStatus = useMemo(() => {
-        const status = new Map<string, "complete" | "partial" | "missing">();
-
-        if (!startDate || !endDate) return status;
-
-        const start = parseISO(startDate);
-        const end = parseISO(endDate);
-        const current = new Date(start);
-
-        // Iterate until the day BEFORE the end date
-        while (current < end) {
-            const dateStr = format(current, "yyyy-MM-dd");
-
-            // Find active expenses for this day
-            // Expenses are inclusive of start date but exclusive of end date for logic
-            const activeShared = tripState.dailySharedExpenses.filter(e => {
-                const start = parseISO(e.startDate);
-                const end = new Date(parseISO(e.endDate).getTime() - 1);
-                if (end < start) return false;
-                return isWithinInterval(current, { start, end });
-            });
-            const activePersonal = tripState.dailyPersonalExpenses.filter(e => {
-                const start = parseISO(e.startDate);
-                const end = new Date(parseISO(e.endDate).getTime() - 1);
-                if (end < start) return false;
-                return isWithinInterval(current, { start, end });
-            });
-
-            if (activeShared.length === 0 && activePersonal.length === 0) {
-                current.setDate(current.getDate() + 1);
-                continue;
-            }
-
-            let assignedCount = 0;
-            let totalActive = activeShared.length + activePersonal.length;
-
-            const dayUsage = tripState.usageCosts.days[dateStr];
-
-            activeShared.forEach(e => {
-                const assigned = dayUsage?.dailyShared[e.id]?.length || 0;
-                if (assigned > 0) assignedCount++;
-            });
-
-            activePersonal.forEach(e => {
-                const assigned = dayUsage?.dailyPersonal[e.id]?.length || 0;
-                if (assigned > 0) assignedCount++;
-            });
-
-            if (assignedCount === 0) {
-                status.set(dateStr, "missing");
-            } else if (assignedCount === totalActive) {
-                status.set(dateStr, "complete");
-            } else {
-                status.set(dateStr, "partial");
-            }
-
-            current.setDate(current.getDate() + 1);
-        }
-
-        return status;
-    }, [tripState, startDate, endDate]);
 
     const modifiersClassNames = {
         complete: "bg-green-100 text-green-900 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-100 dark:hover:bg-green-900/50 font-medium",
@@ -126,8 +60,8 @@ export function UsageCalendar({ tripState, onDaySelect }: UsageCalendarProps) {
                     selected={undefined}
                     onSelect={(date) => date && onDaySelect(date)}
                     defaultMonth={defaultMonth}
-                    fromMonth={startMonth}
-                    toMonth={endMonth}
+                    startMonth={startMonth}
+                    endMonth={endMonth}
                     disableNavigation
                     showOutsideDays={false}
                     modifiers={modifiers}

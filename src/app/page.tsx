@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FeatureCard } from "@/components/FeatureCard";
 import { ArrowRight, Wallet, Users, CalendarDays } from "lucide-react";
 
 export default function LandingPage() {
@@ -15,35 +16,23 @@ export default function LandingPage() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-12">
-          <div className="flex flex-col items-center space-y-4 p-6 bg-card rounded-xl border shadow-sm">
-            <div className="p-3 bg-primary/10 rounded-full text-primary">
-              <Wallet className="h-8 w-8" />
-            </div>
-            <h3 className="text-lg font-semibold">1. Add Expenses</h3>
-            <p className="text-sm text-muted-foreground">
-              Log shared and personal costs in any currency. We handle the conversions.
-            </p>
-          </div>
+          <FeatureCard
+            icon={Wallet}
+            title="1. Add Expenses"
+            description="Log shared and personal costs in any currency. We handle the conversions."
+          />
 
-          <div className="flex flex-col items-center space-y-4 p-6 bg-card rounded-xl border shadow-sm">
-            <div className="p-3 bg-primary/10 rounded-full text-primary">
-              <Users className="h-8 w-8" />
-            </div>
-            <h3 className="text-lg font-semibold">2. Add Travelers</h3>
-            <p className="text-sm text-muted-foreground">
-              List who is coming. We&apos;ll track individual balances and total costs.
-            </p>
-          </div>
+          <FeatureCard
+            icon={Users}
+            title="2. Add Travelers"
+            description="List who is coming. We'll track individual balances and total costs."
+          />
 
-          <div className="flex flex-col items-center space-y-4 p-6 bg-card rounded-xl border shadow-sm">
-            <div className="p-3 bg-primary/10 rounded-full text-primary">
-              <CalendarDays className="h-8 w-8" />
-            </div>
-            <h3 className="text-lg font-semibold">3. Track Usage</h3>
-            <p className="text-sm text-muted-foreground">
-              Mark who was present for each day or expense to split costs fairly.
-            </p>
-          </div>
+          <FeatureCard
+            icon={CalendarDays}
+            title="3. Track Usage"
+            description="Mark who was present for each day or expense to split costs fairly."
+          />
         </div>
 
         <div>
