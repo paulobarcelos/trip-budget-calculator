@@ -26,5 +26,5 @@ jobs:
 
       - name: Unit & component tests
         env:
-          NODE_OPTIONS: --localstorage-file=:memory:
+          NODE_OPTIONS: "--localstorage-file=:memory:"
         run: npm run test
