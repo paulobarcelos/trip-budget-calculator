@@ -7,13 +7,7 @@ import { MobileNav } from './MobileNav';
 import { DataTransferControls } from './DataTransferControls';
 import { SyncStatus } from './SyncStatus';
 import { Menu } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
+import { CurrencySelect } from './CurrencySelect';
 import { Button } from './ui/button';
 import { currencies } from '@/data/currencies';
 import { useDisplayCurrency } from '@/providers/DisplayCurrencyProvider';
@@ -60,21 +54,12 @@ export function Header() {
 
           <div className="flex items-center gap-4">
             <div className="hidden md:block">
-              <Select
-                value={displayCurrency}
-                onValueChange={setDisplayCurrency}
-              >
-                <SelectTrigger className="w-[100px] h-8 text-xs">
-                  <SelectValue placeholder="Currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code} className="text-xs">
-                      {currency.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="hidden md:block w-[140px]">
+                <CurrencySelect
+                  value={displayCurrency}
+                  onValueChange={setDisplayCurrency}
+                />
+              </div>
             </div>
             <div className="hidden md:block">
               <SyncStatus />

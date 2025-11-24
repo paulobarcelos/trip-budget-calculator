@@ -20,6 +20,7 @@ import {
 } from "@/utils/tripStateUpdates";
 import { migrateState } from "@/utils/stateMigrations";
 import { decodeState } from "@/utils/stateEncoding";
+import { useDisplayCurrency } from "@/providers/DisplayCurrencyProvider";
 import {
   Tabs,
   TabsContent,
@@ -33,13 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CurrencySelect } from "@/components/CurrencySelect";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +53,7 @@ type ExpenseType = "dailyShared" | "dailyPersonal" | "oneTimeShared" | "oneTimeP
 
 export default function ExpensesPage() {
   const router = useRouter();
+  const { displayCurrency } = useDisplayCurrency();
   const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>(
     "tripState",
     initialTripState,
@@ -97,7 +93,7 @@ export default function ExpensesPage() {
     dailyCost: "",
     startDate: defaultStartDate,
     endDate: defaultEndDate,
-    currency: "USD",
+    currency: displayCurrency,
     splitMode: "dailyOccupancy" as "dailyOccupancy" | "stayWeighted",
     lastEdited: "total" as "total" | "daily",
   });
@@ -106,7 +102,7 @@ export default function ExpensesPage() {
   const [newDailyPersonalExpense, setNewDailyPersonalExpense] = useState({
     name: "",
     dailyCost: "",
-    currency: "USD",
+    currency: displayCurrency,
     startDate: defaultStartDate,
     endDate: defaultEndDate,
   });
@@ -115,14 +111,14 @@ export default function ExpensesPage() {
   const [newOneTimeSharedExpense, setNewOneTimeSharedExpense] = useState({
     name: "",
     totalCost: "",
-    currency: "USD",
+    currency: displayCurrency,
   });
 
   // One-time Personal Expense form state
   const [newOneTimePersonalExpense, setNewOneTimePersonalExpense] = useState({
     name: "",
     totalCost: "",
-    currency: "USD",
+    currency: displayCurrency,
   });
 
   const handleOpenAddDialog = (type: ExpenseType) => {
@@ -431,26 +427,26 @@ export default function ExpensesPage() {
       dailyCost: "",
       startDate: defaultStartDate,
       endDate: defaultEndDate,
-      currency: "USD",
+      currency: displayCurrency,
       splitMode: "dailyOccupancy",
       lastEdited: "total",
     });
     setNewDailyPersonalExpense({
       name: "",
       dailyCost: "",
-      currency: "USD",
+      currency: displayCurrency,
       startDate: defaultStartDate,
       endDate: defaultEndDate,
     });
     setNewOneTimeSharedExpense({
       name: "",
       totalCost: "",
-      currency: "USD",
+      currency: displayCurrency,
     });
     setNewOneTimePersonalExpense({
       name: "",
       totalCost: "",
-      currency: "USD",
+      currency: displayCurrency,
     });
     setError("");
   };
@@ -783,19 +779,10 @@ export default function ExpensesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select
+                  <CurrencySelect
                     value={newDailySharedExpense.currency}
                     onValueChange={(value) => setNewDailySharedExpense({ ...newDailySharedExpense, currency: value })}
-                  >
-                    <SelectTrigger aria-label="Currency">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
               </div>
               <div className="space-y-2">
@@ -877,19 +864,10 @@ export default function ExpensesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select
+                  <CurrencySelect
                     value={newDailyPersonalExpense.currency}
                     onValueChange={(value) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, currency: value })}
-                  >
-                    <SelectTrigger aria-label="Currency">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
               </div>
               <div className="space-y-2">
@@ -944,19 +922,10 @@ export default function ExpensesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select
+                  <CurrencySelect
                     value={newOneTimeSharedExpense.currency}
                     onValueChange={(value) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, currency: value })}
-                  >
-                    <SelectTrigger aria-label="Currency">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
               </div>
               {error && <div className="text-sm text-destructive">{error}</div>}
@@ -991,19 +960,10 @@ export default function ExpensesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select
+                  <CurrencySelect
                     value={newOneTimePersonalExpense.currency}
                     onValueChange={(value) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, currency: value })}
-                  >
-                    <SelectTrigger aria-label="Currency">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>{c.code} - {c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
               </div>
               {error && <div className="text-sm text-destructive">{error}</div>}
