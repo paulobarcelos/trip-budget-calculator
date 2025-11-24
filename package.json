@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint . && tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "NODE_OPTIONS=--localstorage-file=:memory: vitest run",
-    "test:watch": "NODE_OPTIONS=--localstorage-file=:memory: vitest --watch"
+    "test": "vitest run",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

@@ -25,6 +25,4 @@ jobs:
         run: npm run lint
 
       - name: Unit & component tests
-        env:
-          NODE_OPTIONS: "--localstorage-file=:memory:"
         run: npm run test
