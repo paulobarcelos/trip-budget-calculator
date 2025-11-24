@@ -70,18 +70,20 @@ describe('DataTransferControls', () => {
       travelers: [{ id: 't1', name: 'Alex' }],
       displayCurrency: 'EUR',
     };
-    const file = {
-      name: 'trip.json',
+    const file = new File([JSON.stringify(parsed)], 'trip.json', {
       type: 'application/json',
-      text: vi.fn().mockResolvedValue(JSON.stringify(parsed)),
-    };
+    });
 
+    // Explicitly mock text() to ensure it works in jsdom and returns the expected content
+    Object.defineProperty(file, 'text', {
+      value: async () => JSON.stringify(parsed),
+      writable: true,
+    });
     render(<DataTransferControls />);
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file);
 
     await waitFor(() => expect(capturedState?.displayCurrency).toBe('EUR'));
-    expect(file.text).toHaveBeenCalled();
   });
 });

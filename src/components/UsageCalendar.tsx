@@ -38,12 +38,18 @@ export function UsageCalendar({ tripState, onDaySelect }: UsageCalendarProps) {
 
             // Find active expenses for this day
             // Expenses are inclusive of start date but exclusive of end date for logic
-            const activeShared = tripState.dailySharedExpenses.filter(e =>
-                isWithinInterval(current, { start: parseISO(e.startDate), end: new Date(parseISO(e.endDate).getTime() - 1) })
-            );
-            const activePersonal = tripState.dailyPersonalExpenses.filter(e =>
-                isWithinInterval(current, { start: parseISO(e.startDate), end: new Date(parseISO(e.endDate).getTime() - 1) })
-            );
+            const activeShared = tripState.dailySharedExpenses.filter(e => {
+                const start = parseISO(e.startDate);
+                const end = new Date(parseISO(e.endDate).getTime() - 1);
+                if (end < start) return false;
+                return isWithinInterval(current, { start, end });
+            });
+            const activePersonal = tripState.dailyPersonalExpenses.filter(e => {
+                const start = parseISO(e.startDate);
+                const end = new Date(parseISO(e.endDate).getTime() - 1);
+                if (end < start) return false;
+                return isWithinInterval(current, { start, end });
+            });
 
             if (activeShared.length === 0 && activePersonal.length === 0) {
                 current.setDate(current.getDate() + 1);
