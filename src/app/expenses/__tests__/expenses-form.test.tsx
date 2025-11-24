@@ -55,8 +55,8 @@ describe('ExpensesPage daily shared form', () => {
     const user = userEvent.setup();
     renderWithProviders(<ExpensesPage />);
 
-    // Open the Add Expense dialog
-    await user.click(screen.getByRole('button', { name: /Add Expense/i }));
+    // Click "Add Shared" in the Daily Expenses tab (default active)
+    await user.click(screen.getByRole('button', { name: /Add Shared/i }));
 
     // Wait for dialog to open
     const dialog = await screen.findByRole('dialog');
@@ -74,8 +74,6 @@ describe('ExpensesPage daily shared form', () => {
     fireEvent.change(costInputs[0], {
       target: { value: '300' },
     });
-
-    // Removed Cost per Day check as it's not in the form anymore
 
     await user.click(
       screen.getByRole('button', { name: 'Add Expense' }),
@@ -102,21 +100,12 @@ describe('ExpensesPage daily shared form', () => {
     const user = userEvent.setup();
     renderWithProviders(<ExpensesPage />);
 
-    // Switch to Daily Personal tab
-    const personalTab = screen.getByRole('tab', { name: /Daily Personal/i });
-    await user.click(personalTab);
-
-    // Wait for the tab content to be visible to ensure state updated
-    await screen.findByText("No daily personal expenses added yet.");
-
-    // Open the Add Expense dialog
-    await user.click(screen.getByRole('button', { name: /Add Expense/i }));
+    // Ensure we are on Daily Expenses tab (default)
+    // Click "Add Personal" in the Daily Expenses tab
+    await user.click(screen.getByRole('button', { name: /Add Personal/i }));
 
     // Wait for dialog to open
     const dialog = await screen.findByRole('dialog');
-
-    // Debug: check if the correct form is shown
-    // expect(within(dialog).getByText(/Daily Cost/i)).toBeInTheDocument();
 
     const nameInputs = within(dialog).getAllByLabelText('Name');
     fireEvent.change(nameInputs[0], {

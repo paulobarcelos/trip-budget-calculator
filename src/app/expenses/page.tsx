@@ -517,7 +517,7 @@ export default function ExpensesPage() {
                       <div>
                         <h3 className="font-semibold text-lg">{expense.name}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {expense.currency} {expense.totalCost.toFixed(2)} total
+                          {expense.currency} {expense.totalCost.toFixed(2)} total • {expense.splitMode === 'dailyOccupancy' ? 'Daily Occupancy' : 'Even Split'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
@@ -529,6 +529,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-primary"
                           onClick={() => handleEditExpense(expense, "dailyShared")}
+                          aria-label="Edit expense"
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -537,6 +538,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-destructive"
                           onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyShared", name: expense.name })}
+                          aria-label="Delete expense"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -588,6 +590,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-primary"
                           onClick={() => handleEditExpense(expense, "dailyPersonal")}
+                          aria-label="Edit expense"
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -596,6 +599,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-destructive"
                           onClick={() => setExpenseToDelete({ id: expense.id, type: "dailyPersonal", name: expense.name })}
+                          aria-label="Delete expense"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -646,6 +650,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-primary"
                           onClick={() => handleEditExpense(expense, "oneTimeShared")}
+                          aria-label="Edit expense"
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -654,6 +659,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-destructive"
                           onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimeShared", name: expense.name })}
+                          aria-label="Delete expense"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -702,6 +708,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-primary"
                           onClick={() => handleEditExpense(expense, "oneTimePersonal")}
+                          aria-label="Edit expense"
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -710,6 +717,7 @@ export default function ExpensesPage() {
                           size="icon"
                           className="text-muted-foreground hover:text-destructive"
                           onClick={() => setExpenseToDelete({ id: expense.id, type: "oneTimePersonal", name: expense.name })}
+                          aria-label="Delete expense"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -779,7 +787,7 @@ export default function ExpensesPage() {
                     value={newDailySharedExpense.currency}
                     onValueChange={(value) => setNewDailySharedExpense({ ...newDailySharedExpense, currency: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Currency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -793,6 +801,7 @@ export default function ExpensesPage() {
               <div className="space-y-2">
                 <Label>Date Range</Label>
                 <DatePickerWithRange
+                  aria-label="Date Range"
                   date={{
                     from: newDailySharedExpense.startDate ? parseISO(newDailySharedExpense.startDate) : undefined,
                     to: newDailySharedExpense.endDate ? parseISO(newDailySharedExpense.endDate) : undefined,
@@ -872,7 +881,7 @@ export default function ExpensesPage() {
                     value={newDailyPersonalExpense.currency}
                     onValueChange={(value) => setNewDailyPersonalExpense({ ...newDailyPersonalExpense, currency: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Currency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -886,6 +895,7 @@ export default function ExpensesPage() {
               <div className="space-y-2">
                 <Label>Date Range</Label>
                 <DatePickerWithRange
+                  aria-label="Date Range"
                   date={{
                     from: newDailyPersonalExpense.startDate ? parseISO(newDailyPersonalExpense.startDate) : undefined,
                     to: newDailyPersonalExpense.endDate ? parseISO(newDailyPersonalExpense.endDate) : undefined,
@@ -938,7 +948,7 @@ export default function ExpensesPage() {
                     value={newOneTimeSharedExpense.currency}
                     onValueChange={(value) => setNewOneTimeSharedExpense({ ...newOneTimeSharedExpense, currency: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Currency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -985,7 +995,7 @@ export default function ExpensesPage() {
                     value={newOneTimePersonalExpense.currency}
                     onValueChange={(value) => setNewOneTimePersonalExpense({ ...newOneTimePersonalExpense, currency: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Currency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1014,6 +1024,6 @@ export default function ExpensesPage() {
         confirmLabel="Delete"
         cancelLabel="Cancel"
       />
-    </div>
+    </div >
   );
 }

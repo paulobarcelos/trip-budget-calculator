@@ -15,7 +15,13 @@ export function InfoTooltip({ content }: InfoTooltipProps) {
         <TooltipProvider>
             <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+                    <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="More information"
+                    >
+                        <Info className="h-4 w-4 cursor-help" />
+                    </button>
                 </TooltipTrigger>
                 <TooltipContent>
                     <p className="max-w-xs text-sm">{content}</p>

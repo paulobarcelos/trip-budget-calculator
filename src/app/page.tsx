@@ -31,7 +31,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-lg font-semibold">2. Add Travelers</h3>
             <p className="text-sm text-muted-foreground">
-              List who is coming. We'll track individual balances and total costs.
+              List who is coming. We&apos;ll track individual balances and total costs.
             </p>
           </div>
 
@@ -49,7 +49,7 @@ export default function LandingPage() {
         <div>
           <Link href="/expenses">
             <Button size="lg" className="text-lg px-8 py-6 h-auto gap-2">
-              Get Started <ArrowRight className="h-5 w-5" />
+              Let&apos;s get started! <ArrowRight className="h-5 w-5" />
             </Button>
           </Link>
         </div>

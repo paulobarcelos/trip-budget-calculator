@@ -64,9 +64,10 @@ describe('DataTransferControls', () => {
   });
 
   it('imports JSON and migrates state', async () => {
+    const user = userEvent.setup();
     const parsed: TripState = {
       ...initialTripState,
-      travelers: [{ id: 't1', name: 'Alex', startDate: '2024-01-01', endDate: '2024-01-02' }],
+      travelers: [{ id: 't1', name: 'Alex' }],
       displayCurrency: 'EUR',
     };
     const file = {
@@ -77,8 +78,8 @@ describe('DataTransferControls', () => {
 
     render(<DataTransferControls />);
 
-    const input = document.querySelector('input[type=\"file\"]') as HTMLInputElement;
-    await fireEvent.change(input, { target: { files: [file] } });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
 
     await waitFor(() => expect(capturedState?.displayCurrency).toBe('EUR'));
     expect(file.text).toHaveBeenCalled();

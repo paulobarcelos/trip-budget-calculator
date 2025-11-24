@@ -10,6 +10,7 @@ interface DatePickerWithRangeProps {
     date?: DateRange;
     onDateChange?: (range: DateRange | undefined) => void;
     label?: string;
+    "aria-label"?: string;
 }
 
 export function DatePickerWithRange({
@@ -17,6 +18,7 @@ export function DatePickerWithRange({
     date,
     onDateChange,
     label = "Date Range",
+    "aria-label": ariaLabel,
 }: DatePickerWithRangeProps) {
     // Convert JS Date to CalendarDate
     const toCalendarDate = (date: Date): CalendarDate => {
@@ -36,6 +38,7 @@ export function DatePickerWithRange({
     return (
         <HeroDateRangePicker
             label={label}
+            aria-label={ariaLabel}
             className={className}
             value={value}
             onChange={(range) => {

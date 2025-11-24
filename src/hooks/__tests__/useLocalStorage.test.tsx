@@ -8,10 +8,8 @@ import { migrateState } from '@/utils/stateMigrations';
 import { decodeState, encodeState } from '@/utils/stateEncoding';
 
 const setLocation = (url: string) => {
-  Object.defineProperty(window, 'location', {
-    value: new URL(url),
-    writable: true,
-  });
+  delete (window as any).location;
+  window.location = new URL(url) as any;
 };
 
 const resetUrl = (url = 'http://localhost/') => setLocation(url);
