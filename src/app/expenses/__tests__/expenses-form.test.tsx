@@ -1,14 +1,13 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import ExpensesPage from '../page';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { TripState } from '@/types';
 
 const baseTripState: TripState = {
-  version: 1,
-  startDate: '2024-01-01',
-  endDate: '2024-01-04',
+  version: 3,
   travelers: [],
   dailySharedExpenses: [],
   dailyPersonalExpenses: [],
@@ -24,6 +23,10 @@ let capturedState: TripState | null;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock('@/utils/tripDates', () => ({
+  getTripDateRange: () => ({ startDate: '2024-01-01', endDate: '2024-01-04' }),
 }));
 
 vi.mock('@/hooks/useLocalStorage', () => {
@@ -49,35 +52,87 @@ describe('ExpensesPage daily shared form', () => {
   });
 
   it('adds a daily shared expense with selected split mode and updates per-day preview', async () => {
+    const user = userEvent.setup();
     renderWithProviders(<ExpensesPage />);
 
-    fireEvent.change(screen.getByLabelText('Expense Name'), {
+    // Click "Add Shared" in the Daily Expenses tab (default active)
+    await user.click(screen.getByRole('button', { name: /Add Shared/i }));
+
+    // Wait for dialog to open
+    const dialog = await screen.findByRole('dialog');
+
+    const nameInputs = within(dialog).getAllByLabelText('Name');
+    fireEvent.change(nameInputs[0], {
       target: { value: 'Hotel' },
     });
-    fireEvent.click(screen.getByRole('radio', { name: 'Even-day split' }));
 
-    fireEvent.change(screen.getByLabelText(/Total Cost/i), {
+    // Select split mode (assuming RadioGroup is used)
+    const splitRadios = within(dialog).getAllByLabelText(/Even-day split/i);
+    await user.click(splitRadios[0]);
+
+    const costInputs = within(dialog).getAllByLabelText(/Total Cost/i);
+    fireEvent.change(costInputs[0], {
       target: { value: '300' },
     });
 
-    await waitFor(() => {
-      expect(
-        (screen.getByLabelText(/Cost per Day/i) as HTMLInputElement).value,
-      ).toBe('100.00');
-    });
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Add Daily Shared Expense/i }),
+    await user.click(
+      screen.getByRole('button', { name: 'Add Expense' }),
     );
 
+    // Wait for dialog to close and expense to appear in the list
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     await screen.findByText('Hotel');
-    const splitLabels = screen.getAllByText(/Even-day split/);
-    expect(splitLabels.length).toBeGreaterThan(0);
-    expect(screen.getByText(/100.00 USD per day/)).toBeInTheDocument();
+    // The split mode text is "Even Split" in the list view
+    expect(screen.getByText(/Even Split/)).toBeInTheDocument();
+    // The list view shows total cost, not per day
+    expect(screen.getByText(/USD 300.00 total/)).toBeInTheDocument();
 
     expect(capturedState?.dailySharedExpenses[0]?.splitMode).toBe(
       'stayWeighted',
     );
     expect(capturedState?.dailySharedExpenses[0]?.totalCost).toBe(300);
+  });
+
+  it('adds a daily personal expense with dates', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ExpensesPage />);
+
+    // Ensure we are on Daily Expenses tab (default)
+    // Click "Add Personal" in the Daily Expenses tab
+    await user.click(screen.getByRole('button', { name: /Add Personal/i }));
+
+    // Wait for dialog to open
+    const dialog = await screen.findByRole('dialog');
+
+    const nameInputs = within(dialog).getAllByLabelText('Name');
+    fireEvent.change(nameInputs[0], {
+      target: { value: 'Coffee' },
+    });
+
+    const costInputs = within(dialog).getAllByLabelText(/Daily Cost/i);
+    fireEvent.change(costInputs[0], {
+      target: { value: '5' },
+    });
+
+    // Submit
+    await user.click(
+      screen.getByRole('button', { name: 'Add Expense' }),
+    );
+
+    // Wait for dialog to close
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    await screen.findByText('Coffee');
+    expect(screen.getByText(/USD 5.00 \/ day/)).toBeInTheDocument();
+
+    expect(capturedState?.dailyPersonalExpenses[0]?.name).toBe('Coffee');
+    expect(capturedState?.dailyPersonalExpenses[0]?.dailyCost).toBe(5);
+    expect(capturedState?.dailyPersonalExpenses[0]?.startDate).toBe('2024-01-01');
+    expect(capturedState?.dailyPersonalExpenses[0]?.endDate).toBe('2024-01-04');
   });
 });

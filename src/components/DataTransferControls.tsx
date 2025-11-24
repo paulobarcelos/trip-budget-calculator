@@ -1,11 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { initialTripState } from "@/constants/initialState";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { migrateState } from "@/utils/stateMigrations";
 import { TripState } from "@/types";
 import { decodeState, encodeState } from "@/utils/stateEncoding";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Download, Upload, Link as LinkIcon, Settings } from "lucide-react";
+import { toast } from "sonner";
 
 export function DataTransferControls() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -17,13 +26,6 @@ export function DataTransferControls() {
       decodeFromUrl: decodeState,
     },
   );
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const showMessage = (message: string, isError = false) => {
-    setError(isError ? message : null);
-    setSuccess(isError ? null : message);
-  };
 
   const handleExport = () => {
     try {
@@ -44,10 +46,10 @@ export function DataTransferControls() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      showMessage(`Exported to ${fileName}`);
+      toast.success(`Exported to ${fileName}`);
     } catch (err) {
       console.error("Failed to export JSON", err);
-      showMessage("Could not export data. Please try again.", true);
+      toast.error("Could not export data. Please try again.");
     }
   };
 
@@ -64,13 +66,10 @@ export function DataTransferControls() {
       const parsed = JSON.parse(text);
       const migrated = migrateState(parsed);
       setTripState(migrated);
-      showMessage("Import successful. Your data has been restored.");
+      toast.success("Import successful. Your data has been restored.");
     } catch (err) {
       console.error("Failed to import JSON", err);
-      showMessage(
-        "Invalid file. Please select a valid trip-budget JSON export.",
-        true,
-      );
+      toast.error("Invalid file. Please select a valid trip-budget JSON export.");
     } finally {
       event.target.value = "";
     }
@@ -81,36 +80,37 @@ export function DataTransferControls() {
       const payload = encodeState(tripState);
       const url = `${window.location.origin}/?data=${payload}`;
       await navigator.clipboard.writeText(url);
-      showMessage("Shareable link copied to clipboard.");
+      toast.success("Shareable link copied to clipboard.");
     } catch (err) {
       console.error("Failed to copy link", err);
-      showMessage("Could not copy link. Please try again.", true);
+      toast.error("Could not copy link. Please try again.");
     }
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <button
-        type="button"
-        className="inline-flex items-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-        onClick={handleExport}
-      >
-        Export JSON
-      </button>
-      <button
-        type="button"
-        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
-        onClick={handleImportClick}
-      >
-        Import JSON
-      </button>
-      <button
-        type="button"
-        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
-        onClick={handleCopyLink}
-      >
-        Copy Shareable Link
-      </button>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">
+            <Settings className="h-5 w-5" />
+            <span className="sr-only">Data Settings</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            <span>Save to file</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleImportClick}>
+            <Upload className="mr-2 h-4 w-4" />
+            <span>Open file</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCopyLink}>
+            <LinkIcon className="mr-2 h-4 w-4" />
+            <span>Share Link</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <input
         ref={fileInputRef}
         type="file"
@@ -118,13 +118,6 @@ export function DataTransferControls() {
         className="hidden"
         onChange={handleImport}
       />
-      {(error || success) && (
-        <p
-          className={`text-sm ${error ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
-        >
-          {error ?? success}
-        </p>
-      )}
-    </div>
+    </>
   );
 }

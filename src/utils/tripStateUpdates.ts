@@ -62,119 +62,7 @@ export function generateDaysForDateRange(startDate: string, endDate: string): Da
   return days;
 }
 
-export function updateTripDates(tripState: TripState, newStartDate: string, newEndDate: string): TripState {
-  // Generate the new set of days
-  const newDays = generateDaysForDateRange(newStartDate, newEndDate);
-  const newDayIds = new Set(newDays.map(day => day.id));
-  const existingDayIds = new Set(tripState.days.map(day => day.id));
-  
-  // Keep track of which days are removed
-  const removedDayIds = [...existingDayIds].filter(id => !newDayIds.has(id));
-  
-  // Update usageCosts by removing entries for deleted days
-  const updatedDailyUsageCosts = { ...tripState.usageCosts.days };
-  removedDayIds.forEach(dayId => {
-    delete updatedDailyUsageCosts[dayId];
-  });
-  
-  // Preserve existing days that are still valid and add new ones
-  const updatedDays = newDays.map(newDay => {
-    const existingDay = tripState.days.find(day => day.id === newDay.id);
-    return existingDay || newDay;
-  });
 
-  // Update daily shared expenses to be within trip dates
-  const updatedDailySharedExpenses = tripState.dailySharedExpenses.map(expense => ({
-    ...expense,
-    startDate: expense.startDate < newStartDate ? newStartDate : expense.startDate,
-    endDate: expense.endDate > newEndDate ? newEndDate : expense.endDate,
-  }));
-
-  // Update travelers' dates to be within trip dates
-  const updatedTravelers = tripState.travelers.map(traveler => ({
-    ...traveler,
-    startDate: traveler.startDate < newStartDate ? newStartDate : traveler.startDate,
-    endDate: traveler.endDate > newEndDate ? newEndDate : traveler.endDate,
-  }));
-  
-  return {
-    ...tripState,
-    startDate: newStartDate,
-    endDate: newEndDate,
-    days: updatedDays,
-    travelers: sortTravelers(updatedTravelers),
-    dailySharedExpenses: updatedDailySharedExpenses,
-    usageCosts: {
-      ...tripState.usageCosts,
-      days: updatedDailyUsageCosts,
-    },
-  };
-}
-
-export function updateTravelerDates(
-  tripState: TripState, 
-  travelerId: string, 
-  newStartDate: string | null, 
-  newEndDate: string | null
-): TripState {
-  const updatedTravelers = tripState.travelers.map(traveler => {
-    if (traveler.id === travelerId) {
-      return {
-        ...traveler,
-        startDate: newStartDate || traveler.startDate,
-        endDate: newEndDate || traveler.endDate,
-      };
-    }
-    return traveler;
-  });
-
-  // Clean up usage costs for days where the traveler is no longer present
-  const updatedDailyUsageCosts = { ...tripState.usageCosts.days };
-  
-  Object.entries(updatedDailyUsageCosts).forEach(([dayId, dayUsage]) => {
-    const dayDate = dayId; // Since we use the date as ID
-    const traveler = updatedTravelers.find(t => t.id === travelerId);
-    
-    if (!traveler) return;
-    
-    const isDateInRange = dayDate >= traveler.startDate && dayDate < traveler.endDate;
-    
-    if (!isDateInRange) {
-      // Remove traveler from daily shared expenses for this day
-      Object.entries(dayUsage.dailyShared).forEach(([expenseId, travelerIds]) => {
-        dayUsage.dailyShared[expenseId] = travelerIds.filter(id => id !== travelerId);
-      });
-      
-      // Remove traveler from daily personal expenses for this day
-      Object.entries(dayUsage.dailyPersonal).forEach(([expenseId, travelerIds]) => {
-        dayUsage.dailyPersonal[expenseId] = travelerIds.filter(id => id !== travelerId);
-      });
-    }
-  });
-
-  // Clean up one-time expenses
-  const updatedOneTimeShared = { ...tripState.usageCosts.oneTimeShared };
-  const updatedOneTimePersonal = { ...tripState.usageCosts.oneTimePersonal };
-  
-  Object.entries(updatedOneTimeShared).forEach(([expenseId, travelerIds]) => {
-    updatedOneTimeShared[expenseId] = travelerIds.filter(id => id !== travelerId);
-  });
-  
-  Object.entries(updatedOneTimePersonal).forEach(([expenseId, travelerIds]) => {
-    updatedOneTimePersonal[expenseId] = travelerIds.filter(id => id !== travelerId);
-  });
-
-  return {
-    ...tripState,
-    travelers: sortTravelers(updatedTravelers),
-    usageCosts: {
-      ...tripState.usageCosts,
-      days: updatedDailyUsageCosts,
-      oneTimeShared: updatedOneTimeShared,
-      oneTimePersonal: updatedOneTimePersonal,
-    },
-  };
-}
 
 export function removeExpense(
   tripState: TripState,
@@ -212,7 +100,7 @@ export function removeExpense(
       }
       break;
   }
-  
+
   // Clean up usage costs for daily expenses
   if (expenseType === 'dailyShared' || expenseType === 'dailyPersonal') {
     const updatedDailyUsageCosts = { ...updatedTripState.usageCosts.days };
@@ -231,6 +119,6 @@ export function removeExpense(
 
     updatedTripState.usageCosts.days = updatedDailyUsageCosts;
   }
-  
+
   return updatedTripState;
 } 

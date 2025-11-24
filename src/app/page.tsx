@@ -1,71 +1,59 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Wallet, Users, CalendarDays } from "lucide-react";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="prose lg:prose-xl dark:prose-invert mx-auto">
-      <h1 className="text-gray-900 dark:text-gray-100">Trip Budget Planner</h1>
-      <p className="text-gray-600 dark:text-gray-300">
-        Model your trip before you book it. Enter dates, travelers, and rough
-        costs, then tweak assumptions to see how the total and per-person
-        budgets move.
-      </p>
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] py-12 px-4 sm:px-6 lg:px-8 text-center">
+      <div className="max-w-3xl space-y-8">
+        <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100 sm:text-5xl md:text-6xl">
+          Trip Budget Calculator
+        </h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Plan your trip expenses, track usage, and calculate individual costs effortlessly.
+          Stop worrying about the math and enjoy your travels.
+        </p>
 
-      <h2 className="text-gray-900 dark:text-gray-100">Getting Started</h2>
-      <ol className="text-gray-600 dark:text-gray-300">
-        <li>
-          <Link
-            href="/setup"
-            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-          >
-            Set up your trip dates
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/travelers"
-            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-          >
-            Add travelers and their dates
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/expenses"
-            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-          >
-            Add your expenses and assumptions
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/usage"
-            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-          >
-            (Optional) Track who uses what during the trip
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/budget"
-            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-          >
-            View the budget summary
-          </Link>
-        </li>
-      </ol>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-12">
+          <div className="flex flex-col items-center space-y-4 p-6 bg-card rounded-xl border shadow-sm">
+            <div className="p-3 bg-primary/10 rounded-full text-primary">
+              <Wallet className="h-8 w-8" />
+            </div>
+            <h3 className="text-lg font-semibold">1. Add Expenses</h3>
+            <p className="text-sm text-muted-foreground">
+              Log shared and personal costs in any currency. We handle the conversions.
+            </p>
+          </div>
 
-      <h2 className="text-gray-900 dark:text-gray-100">Features</h2>
-      <ul className="text-gray-600 dark:text-gray-300">
-        <li>Plan first: simulate costs per traveler before booking</li>
-        <li>Handle travelers joining/leaving at different dates</li>
-        <li>Model shared/personal expenses, daily or one-time</li>
-        <li>Instant per-day and per-person totals with toggles</li>
-        <li>Sharable snapshots and currency display selection</li>
-        <li>
-          Export/Import JSON or copy a shareable link from the header at any
-          time
-        </li>
-      </ul>
+          <div className="flex flex-col items-center space-y-4 p-6 bg-card rounded-xl border shadow-sm">
+            <div className="p-3 bg-primary/10 rounded-full text-primary">
+              <Users className="h-8 w-8" />
+            </div>
+            <h3 className="text-lg font-semibold">2. Add Travelers</h3>
+            <p className="text-sm text-muted-foreground">
+              List who is coming. We&apos;ll track individual balances and total costs.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center space-y-4 p-6 bg-card rounded-xl border shadow-sm">
+            <div className="p-3 bg-primary/10 rounded-full text-primary">
+              <CalendarDays className="h-8 w-8" />
+            </div>
+            <h3 className="text-lg font-semibold">3. Track Usage</h3>
+            <p className="text-sm text-muted-foreground">
+              Mark who was present for each day or expense to split costs fairly.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <Link href="/expenses">
+            <Button size="lg" className="text-lg px-8 py-6 h-auto gap-2">
+              Let&apos;s get started! <ArrowRight className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,10 @@
 
 # agents
 /.async-tasks
+/.worktrees
+
+# linting
+lint_report.txt
 
 # testing
 /coverage
@@ -46,3 +50,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+

@@ -35,7 +35,7 @@ Open http://localhost:3000 and step through:
 - `docs/plans/` – implementation plans and design notes
 
 ## Tech Stack
-Next.js 16 (App Router), React 19, TypeScript, Tailwind, Headless UI.
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Shadcn UI.
 
 ## State, Sharing & Currency
 - Trip data lives in `tripState` in localStorage (versioned and migrated on load).

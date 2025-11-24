@@ -1,940 +1,373 @@
 "use client";
 
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { TripState } from "@/types";
-import { useRouter } from "next/navigation";
-import { Tab } from "@headlessui/react";
-import { classNames } from "@/utils/classNames";
+import { TripState, Traveler } from "@/types";
 import { initialTripState } from "@/constants/initialState";
-import { calculateDailyCost, getDayCount } from "@/utils/tripStateUpdates";
-import { Instructions } from "@/components/Instructions";
-import { instructions } from "./instructions";
 import { migrateState } from "@/utils/stateMigrations";
 import { decodeState } from "@/utils/stateEncoding";
+import { UsageCalendar } from "@/components/UsageCalendar";
+import { useState, useMemo } from "react";
+import { format, parseISO, isWithinInterval } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TravelerSelector } from "@/components/TravelerSelector";
+import { sortTravelers } from "@/utils/tripStateUpdates";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 export default function UsagePage() {
-  const router = useRouter();
-  const [tripState, setTripState, isInitialized] = useLocalStorage<TripState>(
+  const [tripState, setTripState] = useLocalStorage<TripState>(
     "tripState",
     initialTripState,
     {
       migrate: migrateState,
       decodeFromUrl: decodeState,
-    },
+    }
   );
-  const isDateWithinRange = (date: string, start: string, end: string) =>
-    Boolean(date && start && end) && date >= start && date < end;
 
-  if (!isInitialized) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
-          Usage
-        </h1>
-        <div className="animate-pulse">
-          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded mb-8"></div>
-          <div className="space-y-4">
-            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          </div>
-        </div>
-      </div>
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleDaySelect = (date: Date) => {
+    setSelectedDate(date);
+    setIsDialogOpen(true);
+  };
+
+  const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+
+  // Get expenses active on the selected date
+  const activeDailyShared = useMemo(() => {
+    if (!selectedDate) return [];
+    return tripState.dailySharedExpenses.filter((e) =>
+      isWithinInterval(selectedDate, {
+        start: parseISO(e.startDate),
+        end: parseISO(e.endDate),
+      })
     );
-  }
+  }, [tripState.dailySharedExpenses, selectedDate]);
 
-  const handleContinue = () => {
-    router.push("/budget");
+  const activeDailyPersonal = useMemo(() => {
+    if (!selectedDate) return [];
+    return tripState.dailyPersonalExpenses.filter((e) =>
+      isWithinInterval(selectedDate, {
+        start: parseISO(e.startDate),
+        end: parseISO(e.endDate),
+      })
+    );
+  }, [tripState.dailyPersonalExpenses, selectedDate]);
+
+  const handleUpdateDailyUsage = (
+    expenseId: string,
+    type: "dailyShared" | "dailyPersonal",
+    travelerId: string,
+    isSelected: boolean
+  ) => {
+    if (!dateStr) return;
+
+    const currentDayUsage = tripState.usageCosts.days[dateStr] || {
+      dailyShared: {},
+      dailyPersonal: {},
+    };
+
+    const currentTravelers =
+      currentDayUsage[type][expenseId] || [];
+
+    let newTravelers: string[];
+    if (isSelected) {
+      newTravelers = [...currentTravelers, travelerId];
+    } else {
+      newTravelers = currentTravelers.filter((id) => id !== travelerId);
+    }
+
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
+        days: {
+          ...tripState.usageCosts.days,
+          [dateStr]: {
+            ...currentDayUsage,
+            [type]: {
+              ...currentDayUsage[type],
+              [expenseId]: newTravelers,
+            },
+          },
+        },
+      },
+    });
+  };
+
+  const handleUpdateOneTimeUsage = (
+    expenseId: string,
+    type: "oneTimeShared" | "oneTimePersonal",
+    travelerId: string,
+    isSelected: boolean
+  ) => {
+    const currentUsage = tripState.usageCosts[type][expenseId] || [];
+
+    let newTravelers: string[];
+    if (isSelected) {
+      newTravelers = [...currentUsage, travelerId];
+    } else {
+      newTravelers = currentUsage.filter((id) => id !== travelerId);
+    }
+
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
+        [type]: {
+          ...tripState.usageCosts[type],
+          [expenseId]: newTravelers,
+        },
+      },
+    });
+  };
+
+  const handleCreateTraveler = (name: string) => {
+    const newTraveler: Traveler = {
+      id: crypto.randomUUID(),
+      name,
+    };
+    setTripState({
+      ...tripState,
+      travelers: sortTravelers([...tripState.travelers, newTraveler]),
+    });
+  };
+
+  const handleCopyPreviousDay = () => {
+    if (!selectedDate || !dateStr) return;
+
+    const prevDate = new Date(selectedDate);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = format(prevDate, "yyyy-MM-dd");
+
+    const prevDayUsage = tripState.usageCosts.days[prevDateStr];
+    if (!prevDayUsage) return;
+
+    const currentDayUsage = tripState.usageCosts.days[dateStr] || {
+      dailyShared: {},
+      dailyPersonal: {},
+    };
+
+    // Merge previous day's usage into current day
+    // Only copy for expenses that are active on the current day
+    const newDailyShared = { ...currentDayUsage.dailyShared };
+    activeDailyShared.forEach((expense) => {
+      if (prevDayUsage.dailyShared[expense.id]) {
+        newDailyShared[expense.id] = prevDayUsage.dailyShared[expense.id];
+      }
+    });
+
+    const newDailyPersonal = { ...currentDayUsage.dailyPersonal };
+    activeDailyPersonal.forEach((expense) => {
+      if (prevDayUsage.dailyPersonal[expense.id]) {
+        newDailyPersonal[expense.id] = prevDayUsage.dailyPersonal[expense.id];
+      }
+    });
+
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
+        days: {
+          ...tripState.usageCosts.days,
+          [dateStr]: {
+            dailyShared: newDailyShared,
+            dailyPersonal: newDailyPersonal,
+          },
+        },
+      },
+    });
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
-        Usage
-      </h1>
-      <Instructions text={instructions} />
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+          Usage Tracking
+        </h1>
+        <p className="text-muted-foreground">
+          Assign expenses to travelers based on their presence.
+        </p>
+      </div>
 
-      <Tab.Group>
-        <Tab.List className="flex space-x-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
-          {["Daily Expenses", "One-time Expenses"].map((category) => (
-            <Tab
-              key={category}
-              className={({ selected }) =>
-                classNames(
-                  "w-full rounded-lg py-2.5 text-sm font-medium leading-5",
-                  "ring-white/60 ring-offset-2 ring-offset-primary-400 focus:outline-none focus:ring-2",
-                  selected
-                    ? "bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-400 shadow"
-                    : "text-gray-600 dark:text-gray-400 hover:bg-white/[0.12] hover:text-primary-600 dark:hover:text-primary-400",
-                )
-              }
-            >
-              {category}
-            </Tab>
-          ))}
-        </Tab.List>
-        <Tab.Panels className="mt-6">
-          <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              Daily Expenses Usage
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              For each day, select which travelers used each expense.
-            </p>
+      <Tabs defaultValue="daily" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="daily">Daily Usage</TabsTrigger>
+          <TabsTrigger value="onetime">One-time Expenses</TabsTrigger>
+        </TabsList>
 
-            {tripState.days.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No days in the trip yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-12">
-                {tripState.days.map((day, index) => (
-                  <div
-                    key={day.date}
-                    className="border-t border-gray-200 dark:border-gray-700 pt-8"
-                  >
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                        {day.date}
-                      </h3>
-                      {index > 0 && (
-                        <button
-                          onClick={() => {
-                            setTripState((prev) => {
-                              const previousDay = prev.days[index - 1];
-                              if (!previousDay) return prev;
-                              const previousDayExpenses =
-                                prev.usageCosts.days[previousDay.id];
-                              if (!previousDayExpenses) return prev;
+        <TabsContent value="daily" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Calendar</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <UsageCalendar tripState={tripState} onDaySelect={handleDaySelect} />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                              const cloneRecord = (
-                                record: Record<string, string[]> = {},
-                              ) =>
-                                Object.fromEntries(
-                                  Object.entries(record).map(
-                                    ([expenseId, travelerIds]) => [
-                                      expenseId,
-                                      [...travelerIds],
-                                    ],
-                                  ),
-                                );
+        <TabsContent value="onetime" className="space-y-4">
+          <div className="grid gap-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Shared Expenses</h3>
+              {tripState.oneTimeSharedExpenses.length === 0 && (
+                <p className="text-muted-foreground text-sm">No one-time shared expenses.</p>
+              )}
+              {tripState.oneTimeSharedExpenses.map((expense) => (
+                <Card key={expense.id}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-medium flex justify-between">
+                      {expense.name}
+                      <Badge variant="outline">
+                        {expense.currency} {expense.totalCost}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.oneTimeShared[expense.id] || []
+                      }
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateOneTimeUsage(expense.id, "oneTimeShared", tId, selected)
+                      }
+                      onCreateTraveler={handleCreateTraveler}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-                              const clonedDailyShared = cloneRecord(
-                                previousDayExpenses.dailyShared,
-                              );
-                              const clonedDailyPersonal = cloneRecord(
-                                previousDayExpenses.dailyPersonal,
-                              );
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Personal Expenses</h3>
+              {tripState.oneTimePersonalExpenses.length === 0 && (
+                <p className="text-muted-foreground text-sm">No one-time personal expenses.</p>
+              )}
+              {tripState.oneTimePersonalExpenses.map((expense) => (
+                <Card key={expense.id}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-medium flex justify-between">
+                      {expense.name}
+                      <Badge variant="outline">
+                        {expense.currency} {expense.totalCost}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.oneTimePersonal[expense.id] || []
+                      }
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateOneTimeUsage(expense.id, "oneTimePersonal", tId, selected)
+                      }
+                      onCreateTraveler={handleCreateTraveler}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
-                              const filterForDay = (
-                                record: Record<string, string[]>,
-                              ) =>
-                                Object.fromEntries(
-                                  Object.entries(record).map(
-                                    ([expenseId, travelerIds]) => [
-                                      expenseId,
-                                      travelerIds.filter((travelerId) => {
-                                        const traveler = prev.travelers.find(
-                                          (t) => t.id === travelerId,
-                                        );
-                                        return (
-                                          traveler &&
-                                          isDateWithinRange(
-                                            day.date,
-                                            traveler.startDate,
-                                            traveler.endDate,
-                                          )
-                                        );
-                                      }),
-                                    ],
-                                  ),
-                                );
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Usage for {selectedDate ? format(selectedDate, "MMMM d, yyyy") : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Select who was present for each expense on this day.
+            </DialogDescription>
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyPreviousDay}
+                disabled={!selectedDate}
+              >
+                Copy from Previous Day
+              </Button>
+            </div>
+          </DialogHeader>
 
-                              const filteredDailyShared =
-                                filterForDay(clonedDailyShared);
-                              const filteredDailyPersonal =
-                                filterForDay(clonedDailyPersonal);
-
-                              const newUsageCosts = {
-                                ...prev.usageCosts,
-                                days: {
-                                  ...prev.usageCosts.days,
-                                  [day.id]: {
-                                    dailyShared: filteredDailyShared,
-                                    dailyPersonal: filteredDailyPersonal,
-                                  },
-                                },
-                              };
-
-                              return { ...prev, usageCosts: newUsageCosts };
-                            });
-                          }}
-                          className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                        >
-                          Copy from previous day
-                        </button>
-                      )}
+          <ScrollArea className="flex-1 pr-4 -mr-4">
+            <div className="space-y-6 py-4">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                  Daily Shared Expenses
+                </h3>
+                {activeDailyShared.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No active shared expenses for this day.</p>
+                )}
+                {activeDailyShared.map((expense) => (
+                  <div key={expense.id} className="space-y-2 border rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{expense.name}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {expense.currency} {expense.totalCost} (Total)
+                      </Badge>
                     </div>
-
-                    {/* Daily Shared Expenses */}
-                    <div className="mb-8">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">
-                        Shared Expenses
-                      </h4>
-                      {tripState.dailySharedExpenses.some((expense) =>
-                        isDateWithinRange(
-                          day.date,
-                          expense.startDate,
-                          expense.endDate,
-                        ),
-                      ) ? (
-                        <div className="space-y-4">
-                          {tripState.dailySharedExpenses.map((expense) => {
-                            const isExpenseActive = isDateWithinRange(
-                              day.date,
-                              expense.startDate,
-                              expense.endDate,
-                            );
-                            if (!isExpenseActive) return null;
-
-                            return (
-                              <div
-                                key={expense.id}
-                                className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
-                              >
-                                <div className="flex justify-between items-start mb-4">
-                                  <div>
-                                    <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                      {expense.name}
-                                    </h5>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                      {(() => {
-                                        const dailyCost = calculateDailyCost(
-                                          expense.totalCost,
-                                          expense.startDate,
-                                          expense.endDate,
-                                        );
-                                        const days = getDayCount(
-                                          expense.startDate,
-                                          expense.endDate,
-                                        );
-                                        const modeText =
-                                          expense.splitMode === "stayWeighted"
-                                            ? "Even-day split"
-                                            : "Daily occupancy split";
-                                        return `${modeText} • ${dailyCost.toFixed(2)} ${expense.currency} per day (${expense.totalCost} ${expense.currency} total over ${days} days)`;
-                                      })()}
-                                    </p>
-                                  </div>
-                                  <div className="flex space-x-2">
-                                    <button
-                                      onClick={() => {
-                                        // Select all travelers
-                                        setTripState((prev) => {
-                                          const newDays = prev.days.map((d) => {
-                                            if (d.date !== day.date) return d;
-                                            return d;
-                                          });
-
-                                          // Get all travelers present on this day
-                                          const presentTravelers =
-                                            tripState.travelers
-                                              .filter((traveler) =>
-                                                isDateWithinRange(
-                                                  day.date,
-                                                  traveler.startDate,
-                                                  traveler.endDate,
-                                                ),
-                                              )
-                                              .map((t) => t.id);
-
-                                          const newUsageCosts = {
-                                            ...prev.usageCosts,
-                                            days: {
-                                              ...prev.usageCosts.days,
-                                              [day.id]: {
-                                                ...(prev.usageCosts.days[
-                                                  day.id
-                                                ] ?? {}),
-                                                dailyShared: {
-                                                  ...(prev.usageCosts.days[
-                                                    day.id
-                                                  ]?.dailyShared ?? {}),
-                                                  [expense.id]:
-                                                    presentTravelers,
-                                                },
-                                                dailyPersonal:
-                                                  prev.usageCosts.days[day.id]
-                                                    ?.dailyPersonal ?? {},
-                                              },
-                                            },
-                                          };
-
-                                          return {
-                                            ...prev,
-                                            days: newDays,
-                                            usageCosts: newUsageCosts,
-                                          };
-                                        });
-                                      }}
-                                      className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                                    >
-                                      Select All
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        // Clear all travelers
-                                        setTripState((prev) => {
-                                          const newDays = prev.days.map((d) => {
-                                            if (d.date !== day.date) return d;
-                                            return d;
-                                          });
-
-                                          const newUsageCosts = {
-                                            ...prev.usageCosts,
-                                            days: {
-                                              ...prev.usageCosts.days,
-                                              [day.id]: {
-                                                ...(prev.usageCosts.days[
-                                                  day.id
-                                                ] ?? {}),
-                                                dailyShared: {
-                                                  ...(prev.usageCosts.days[
-                                                    day.id
-                                                  ]?.dailyShared ?? {}),
-                                                  [expense.id]: [],
-                                                },
-                                                dailyPersonal:
-                                                  prev.usageCosts.days[day.id]
-                                                    ?.dailyPersonal ?? {},
-                                              },
-                                            },
-                                          };
-
-                                          return {
-                                            ...prev,
-                                            days: newDays,
-                                            usageCosts: newUsageCosts,
-                                          };
-                                        });
-                                      }}
-                                      className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                                    >
-                                      Clear
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  {tripState.travelers.map((traveler) => {
-                                    const isTravelerPresent = isDateWithinRange(
-                                      day.date,
-                                      traveler.startDate,
-                                      traveler.endDate,
-                                    );
-                                    if (!isTravelerPresent) return null;
-
-                                    return (
-                                      <label
-                                        key={traveler.id}
-                                        className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
-                                          checked={
-                                            tripState.usageCosts.days[
-                                              day.id
-                                            ]?.dailyShared[
-                                              expense.id
-                                            ]?.includes(traveler.id) ?? false
-                                          }
-                                          onChange={(e) => {
-                                            const isChecked = e.target.checked;
-                                            setTripState((prev) => {
-                                              const newDays = prev.days.map(
-                                                (d) => {
-                                                  if (d.date !== day.date)
-                                                    return d;
-                                                  return d;
-                                                },
-                                              );
-
-                                              const newUsageCosts = {
-                                                ...prev.usageCosts,
-                                                days: {
-                                                  ...prev.usageCosts.days,
-                                                  [day.id]: {
-                                                    dailyShared: {
-                                                      ...(prev.usageCosts.days[
-                                                        day.id
-                                                      ]?.dailyShared ?? {}),
-                                                      [expense.id]: isChecked
-                                                        ? [
-                                                            ...(prev.usageCosts
-                                                              .days[day.id]
-                                                              ?.dailyShared[
-                                                              expense.id
-                                                            ] ?? []),
-                                                            traveler.id,
-                                                          ]
-                                                        : (
-                                                            prev.usageCosts
-                                                              .days[day.id]
-                                                              ?.dailyShared[
-                                                              expense.id
-                                                            ] ?? []
-                                                          ).filter(
-                                                            (id) =>
-                                                              id !==
-                                                              traveler.id,
-                                                          ),
-                                                    },
-                                                    dailyPersonal:
-                                                      prev.usageCosts.days[
-                                                        day.id
-                                                      ]?.dailyPersonal ?? {},
-                                                  },
-                                                },
-                                              };
-
-                                              return {
-                                                ...prev,
-                                                days: newDays,
-                                                usageCosts: newUsageCosts,
-                                              };
-                                            });
-                                          }}
-                                        />
-                                        <span className="text-sm text-gray-900 dark:text-gray-100">
-                                          {traveler.name}
-                                        </span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            No shared expenses active for this day.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Daily Personal Expenses */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">
-                        Personal Expenses
-                      </h4>
-                      {tripState.dailyPersonalExpenses.length > 0 ? (
-                        <div className="space-y-4">
-                          {tripState.dailyPersonalExpenses.map((expense) => (
-                            <div
-                              key={expense.id}
-                              className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
-                            >
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {expense.name}
-                                  </h5>
-                                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {expense.dailyCost} {expense.currency} per
-                                    person per day
-                                  </p>
-                                </div>
-                                <div className="flex space-x-2">
-                                  <button
-                                    onClick={() => {
-                                      // Select all travelers
-                                      setTripState((prev) => {
-                                        const newDays = prev.days.map((d) => {
-                                          if (d.date !== day.date) return d;
-                                          return d;
-                                        });
-
-                                        // Get all travelers present on this day
-                                        const presentTravelers =
-                                          tripState.travelers
-                                            .filter((traveler) =>
-                                              isDateWithinRange(
-                                                day.date,
-                                                traveler.startDate,
-                                                traveler.endDate,
-                                              ),
-                                            )
-                                            .map((t) => t.id);
-
-                                        const newUsageCosts = {
-                                          ...prev.usageCosts,
-                                          days: {
-                                            ...prev.usageCosts.days,
-                                            [day.id]: {
-                                              dailyShared:
-                                                prev.usageCosts.days[day.id]
-                                                  ?.dailyShared ?? {},
-                                              dailyPersonal: {
-                                                ...(prev.usageCosts.days[day.id]
-                                                  ?.dailyPersonal ?? {}),
-                                                [expense.id]: presentTravelers,
-                                              },
-                                            },
-                                          },
-                                        };
-
-                                        return {
-                                          ...prev,
-                                          days: newDays,
-                                          usageCosts: newUsageCosts,
-                                        };
-                                      });
-                                    }}
-                                    className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                                  >
-                                    Select All
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      // Clear all travelers
-                                      setTripState((prev) => {
-                                        const newDays = prev.days.map((d) => {
-                                          if (d.date !== day.date) return d;
-                                          return d;
-                                        });
-
-                                        const newUsageCosts = {
-                                          ...prev.usageCosts,
-                                          days: {
-                                            ...prev.usageCosts.days,
-                                            [day.id]: {
-                                              ...(prev.usageCosts.days[
-                                                day.id
-                                              ] ?? {}),
-                                              dailyPersonal: {
-                                                ...(prev.usageCosts.days[day.id]
-                                                  ?.dailyPersonal ?? {}),
-                                                [expense.id]: [],
-                                              },
-                                              dailyShared:
-                                                prev.usageCosts.days[day.id]
-                                                  ?.dailyShared ?? {},
-                                            },
-                                          },
-                                        };
-
-                                        return {
-                                          ...prev,
-                                          days: newDays,
-                                          usageCosts: newUsageCosts,
-                                        };
-                                      });
-                                    }}
-                                    className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                                  >
-                                    Clear
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                {tripState.travelers.map((traveler) => {
-                                  const isTravelerPresent = isDateWithinRange(
-                                    day.date,
-                                    traveler.startDate,
-                                    traveler.endDate,
-                                  );
-                                  if (!isTravelerPresent) return null;
-
-                                  return (
-                                    <label
-                                      key={traveler.id}
-                                      className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
-                                        checked={
-                                          tripState.usageCosts.days[
-                                            day.id
-                                          ]?.dailyPersonal[
-                                            expense.id
-                                          ]?.includes(traveler.id) ?? false
-                                        }
-                                        onChange={(e) => {
-                                          const isChecked = e.target.checked;
-                                          setTripState((prev) => {
-                                            const newDays = prev.days.map(
-                                              (d) => {
-                                                if (d.date !== day.date)
-                                                  return d;
-                                                return d;
-                                              },
-                                            );
-
-                                            const newUsageCosts = {
-                                              ...prev.usageCosts,
-                                              days: {
-                                                ...prev.usageCosts.days,
-                                                [day.id]: {
-                                                  dailyShared:
-                                                    prev.usageCosts.days[day.id]
-                                                      ?.dailyShared ?? {},
-                                                  dailyPersonal: {
-                                                    ...(prev.usageCosts.days[
-                                                      day.id
-                                                    ]?.dailyPersonal ?? {}),
-                                                    [expense.id]: isChecked
-                                                      ? [
-                                                          ...(prev.usageCosts
-                                                            .days[day.id]
-                                                            ?.dailyPersonal[
-                                                            expense.id
-                                                          ] ?? []),
-                                                          traveler.id,
-                                                        ]
-                                                      : (
-                                                          prev.usageCosts.days[
-                                                            day.id
-                                                          ]?.dailyPersonal[
-                                                            expense.id
-                                                          ] ?? []
-                                                        ).filter(
-                                                          (id) =>
-                                                            id !== traveler.id,
-                                                        ),
-                                                  },
-                                                },
-                                              },
-                                            };
-
-                                            return {
-                                              ...prev,
-                                              days: newDays,
-                                              usageCosts: newUsageCosts,
-                                            };
-                                          });
-                                        }}
-                                      />
-                                      <span className="text-sm text-gray-900 dark:text-gray-100">
-                                        {traveler.name}
-                                      </span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            No personal expenses added yet.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.days[dateStr]?.dailyShared[expense.id] || []
+                      }
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateDailyUsage(expense.id, "dailyShared", tId, selected)
+                      }
+                      onCreateTraveler={handleCreateTraveler}
+                    />
                   </div>
                 ))}
               </div>
-            )}
-          </Tab.Panel>
 
-          <Tab.Panel className="rounded-xl bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700">
-            <div className="space-y-12">
-              {/* One-time Shared Expenses */}
-              <div>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                  One-time Shared Expenses
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  Select which travelers will share each one-time expense. The
-                  total cost will be split equally among selected travelers.
-                </p>
-
-                {tripState.oneTimeSharedExpenses.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      No one-time shared expenses added yet.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-8">
-                    {tripState.oneTimeSharedExpenses.map((expense) => (
-                      <div
-                        key={expense.id}
-                        className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
-                      >
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {expense.name}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {expense.totalCost} {expense.currency} total
-                            </p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => {
-                                // Select all travelers
-                                setTripState((prev) => ({
-                                  ...prev,
-                                  usageCosts: {
-                                    ...prev.usageCosts,
-                                    oneTimeShared: {
-                                      ...prev.usageCosts.oneTimeShared,
-                                      [expense.id]: tripState.travelers.map(
-                                        (t) => t.id,
-                                      ),
-                                    },
-                                  },
-                                }));
-                              }}
-                              className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                            >
-                              Select All
-                            </button>
-                            <button
-                              onClick={() => {
-                                // Clear all travelers
-                                setTripState((prev) => ({
-                                  ...prev,
-                                  usageCosts: {
-                                    ...prev.usageCosts,
-                                    oneTimeShared: {
-                                      ...prev.usageCosts.oneTimeShared,
-                                      [expense.id]: [],
-                                    },
-                                  },
-                                }));
-                              }}
-                              className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                            >
-                              Clear
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          {tripState.travelers.map((traveler) => (
-                            <label
-                              key={traveler.id}
-                              className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
-                                checked={
-                                  tripState.usageCosts.oneTimeShared[
-                                    expense.id
-                                  ]?.includes(traveler.id) ?? false
-                                }
-                                onChange={(e) => {
-                                  const isChecked = e.target.checked;
-                                  setTripState((prev) => {
-                                    const newUsageCosts = {
-                                      ...prev.usageCosts,
-                                      oneTimeShared: {
-                                        ...prev.usageCosts.oneTimeShared,
-                                      },
-                                    };
-
-                                    if (
-                                      !newUsageCosts.oneTimeShared[expense.id]
-                                    ) {
-                                      newUsageCosts.oneTimeShared[expense.id] =
-                                        [];
-                                    }
-
-                                    if (isChecked) {
-                                      newUsageCosts.oneTimeShared[expense.id] =
-                                        [
-                                          ...newUsageCosts.oneTimeShared[
-                                            expense.id
-                                          ],
-                                          traveler.id,
-                                        ];
-                                    } else {
-                                      newUsageCosts.oneTimeShared[expense.id] =
-                                        newUsageCosts.oneTimeShared[
-                                          expense.id
-                                        ].filter((id) => id !== traveler.id);
-                                    }
-
-                                    return {
-                                      ...prev,
-                                      usageCosts: newUsageCosts,
-                                    };
-                                  });
-                                }}
-                              />
-                              <span className="text-sm text-gray-900 dark:text-gray-100">
-                                {traveler.name}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                  Daily Personal Expenses
+                </h3>
+                {activeDailyPersonal.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No active personal expenses for this day.</p>
                 )}
-              </div>
-
-              {/* One-time Personal Expenses */}
-              <div>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                  One-time Personal Expenses
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  Select which travelers will use each one-time personal
-                  expense. Each selected traveler will pay the full amount.
-                </p>
-
-                {tripState.oneTimePersonalExpenses.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      No one-time personal expenses added yet.
-                    </p>
+                {activeDailyPersonal.map((expense) => (
+                  <div key={expense.id} className="space-y-2 border rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{expense.name}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {expense.currency} {expense.dailyCost}/day
+                      </Badge>
+                    </div>
+                    <TravelerSelector
+                      travelers={tripState.travelers}
+                      selectedTravelerIds={
+                        tripState.usageCosts.days[dateStr]?.dailyPersonal[expense.id] || []
+                      }
+                      onToggleTraveler={(tId, selected) =>
+                        handleUpdateDailyUsage(expense.id, "dailyPersonal", tId, selected)
+                      }
+                      onCreateTraveler={handleCreateTraveler}
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-8">
-                    {tripState.oneTimePersonalExpenses.map((expense) => (
-                      <div
-                        key={expense.id}
-                        className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
-                      >
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {expense.name}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {expense.totalCost} {expense.currency} per person
-                            </p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => {
-                                // Select all travelers
-                                setTripState((prev) => ({
-                                  ...prev,
-                                  usageCosts: {
-                                    ...prev.usageCosts,
-                                    oneTimePersonal: {
-                                      ...prev.usageCosts.oneTimePersonal,
-                                      [expense.id]: tripState.travelers.map(
-                                        (t) => t.id,
-                                      ),
-                                    },
-                                  },
-                                }));
-                              }}
-                              className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                            >
-                              Select All
-                            </button>
-                            <button
-                              onClick={() => {
-                                // Clear all travelers
-                                setTripState((prev) => ({
-                                  ...prev,
-                                  usageCosts: {
-                                    ...prev.usageCosts,
-                                    oneTimePersonal: {
-                                      ...prev.usageCosts.oneTimePersonal,
-                                      [expense.id]: [],
-                                    },
-                                  },
-                                }));
-                              }}
-                              className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                            >
-                              Clear
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          {tripState.travelers.map((traveler) => (
-                            <label
-                              key={traveler.id}
-                              className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
-                                checked={
-                                  tripState.usageCosts.oneTimePersonal[
-                                    expense.id
-                                  ]?.includes(traveler.id) ?? false
-                                }
-                                onChange={(e) => {
-                                  const isChecked = e.target.checked;
-                                  setTripState((prev) => {
-                                    const newUsageCosts = {
-                                      ...prev.usageCosts,
-                                      oneTimePersonal: {
-                                        ...prev.usageCosts.oneTimePersonal,
-                                      },
-                                    };
-
-                                    if (
-                                      !newUsageCosts.oneTimePersonal[expense.id]
-                                    ) {
-                                      newUsageCosts.oneTimePersonal[
-                                        expense.id
-                                      ] = [];
-                                    }
-
-                                    if (isChecked) {
-                                      newUsageCosts.oneTimePersonal[
-                                        expense.id
-                                      ] = [
-                                        ...newUsageCosts.oneTimePersonal[
-                                          expense.id
-                                        ],
-                                        traveler.id,
-                                      ];
-                                    } else {
-                                      newUsageCosts.oneTimePersonal[
-                                        expense.id
-                                      ] = newUsageCosts.oneTimePersonal[
-                                        expense.id
-                                      ].filter((id) => id !== traveler.id);
-                                    }
-
-                                    return {
-                                      ...prev,
-                                      usageCosts: newUsageCosts,
-                                    };
-                                  });
-                                }}
-                              />
-                              <span className="text-sm text-gray-900 dark:text-gray-100">
-                                {traveler.name}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
             </div>
-          </Tab.Panel>
-        </Tab.Panels>
-      </Tab.Group>
-
-      <div className="mt-8">
-        <button
-          onClick={handleContinue}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-900"
-        >
-          Continue to Budget
-        </button>
-      </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

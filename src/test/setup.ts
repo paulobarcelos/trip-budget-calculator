@@ -25,6 +25,16 @@ process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {
   return originalEmitWarning(warning, ...rest);
 }) as typeof process.emitWarning;
 
+// Polyfill ResizeObserver for cmdk
+global.ResizeObserver = class ResizeObserver {
+  observe() { }
+  unobserve() { }
+  disconnect() { }
+};
+
+// Polyfill scrollIntoView for cmdk
+Element.prototype.scrollIntoView = () => { };
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => {
   server.resetHandlers();

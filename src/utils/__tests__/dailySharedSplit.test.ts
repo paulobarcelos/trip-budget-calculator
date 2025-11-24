@@ -55,7 +55,7 @@ describe('calculateDailySharedAllocations', () => {
   });
 
   it('splits by person-night when stayWeighted', () => {
-    const expense = { ...defaultExpense, splitMode: 'stayWeighted' };
+    const expense: DailySharedExpense = { ...defaultExpense, splitMode: 'stayWeighted' };
     const usage = makeUsage({
       '2024-01-01': ['a', 'b'],
       '2024-01-02': ['a'],
@@ -75,7 +75,7 @@ describe('calculateDailySharedAllocations', () => {
   });
 
   it('returns empty map when no person-nights', () => {
-    const expense = { ...defaultExpense, splitMode: 'stayWeighted' };
+    const expense: DailySharedExpense = { ...defaultExpense, splitMode: 'stayWeighted' };
     const usage = makeUsage({
       '2024-01-01': [],
       '2024-01-02': [],
