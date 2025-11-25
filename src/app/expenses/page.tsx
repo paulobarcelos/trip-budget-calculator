@@ -46,6 +46,7 @@ import {
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { format, parseISO } from "date-fns";
 import { Plus, Trash2, Edit2 } from "lucide-react";
+import { UnifiedExpenseCreator, ExpenseCreationData } from "@/components/UnifiedExpenseCreator";
 
 import { getTripDateRange } from "@/utils/tripDates";
 
@@ -75,6 +76,7 @@ export default function ExpensesPage() {
   } | null>(null);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isUnifiedCreatorOpen, setIsUnifiedCreatorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("daily");
   const [dialogExpenseType, setDialogExpenseType] = useState<ExpenseType>("dailyShared");
 
@@ -410,6 +412,81 @@ export default function ExpensesPage() {
     setIsAddDialogOpen(false);
   };
 
+  const handleSaveUnifiedExpense = (data: ExpenseCreationData) => {
+    const { name, isDaily, startDate, endDate, currency, totalCost, isShared, splitMode } = data;
+
+    if (isDaily) {
+      if (!startDate || !endDate) return; // Should be handled by validator but safety check
+
+      if (isShared) {
+        // Daily Shared
+        const expense: DailySharedExpense = {
+          id: crypto.randomUUID(),
+          name,
+          totalCost,
+          startDate,
+          endDate,
+          currency,
+          splitMode: splitMode || "dailyOccupancy",
+        };
+        setTripState(prev => ({
+          ...prev,
+          dailySharedExpenses: [...prev.dailySharedExpenses, expense]
+        }));
+      } else {
+        // Daily Personal
+        // For personal daily, we need dailyCost.
+        // The unified creator returns totalCost.
+        // We need to calculate dailyCost.
+        const dayCount = getDayCount(startDate, endDate);
+        const safeDays = dayCount > 0 ? dayCount : 1;
+        const dailyCost = totalCost / safeDays;
+
+        const expense: DailyPersonalExpense = {
+          id: crypto.randomUUID(),
+          name,
+          dailyCost,
+          startDate,
+          endDate,
+          currency,
+        };
+        setTripState(prev => ({
+          ...prev,
+          dailyPersonalExpenses: [...prev.dailyPersonalExpenses, expense]
+        }));
+      }
+    } else {
+      // One Time
+      if (isShared) {
+        // One Time Shared
+        const expense: OneTimeSharedExpense = {
+          id: crypto.randomUUID(),
+          name,
+          totalCost,
+          currency,
+        };
+        setTripState(prev => ({
+          ...prev,
+          oneTimeSharedExpenses: [...prev.oneTimeSharedExpenses, expense]
+        }));
+      } else {
+        // One Time Personal
+        const expense: OneTimePersonalExpense = {
+          id: crypto.randomUUID(),
+          name,
+          totalCost,
+          currency,
+        };
+        setTripState(prev => ({
+          ...prev,
+          oneTimePersonalExpenses: [...prev.oneTimePersonalExpenses, expense]
+        }));
+      }
+    }
+
+    setIsUnifiedCreatorOpen(false);
+  };
+
   const handleDeleteExpense = () => {
     if (!expenseToDelete) return;
 
@@ -476,6 +553,10 @@ export default function ExpensesPage() {
             Log all your trip expenses here. Dates are automatically inferred.
           </p>
         </div>
+        <Button onClick={() => setIsUnifiedCreatorOpen(true)} size="lg">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Expense
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -495,10 +576,6 @@ export default function ExpensesPage() {
                 </h2>
                 <p className="text-sm text-muted-foreground">Expenses that occur every day and are shared.</p>
               </div>
-              <Button onClick={() => handleOpenAddDialog("dailyShared")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Shared
-              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -556,10 +633,6 @@ export default function ExpensesPage() {
                 </h2>
                 <p className="text-sm text-muted-foreground">Expenses that occur every day for a specific person.</p>
               </div>
-              <Button onClick={() => handleOpenAddDialog("dailyPersonal")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Personal
-              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -619,10 +692,6 @@ export default function ExpensesPage() {
                 </h2>
                 <p className="text-sm text-muted-foreground">One-off expenses shared by the group.</p>
               </div>
-              <Button onClick={() => handleOpenAddDialog("oneTimeShared")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Shared
-              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -677,10 +746,6 @@ export default function ExpensesPage() {
                 </h2>
                 <p className="text-sm text-muted-foreground">One-off expenses for a specific person.</p>
               </div>
-              <Button onClick={() => handleOpenAddDialog("oneTimePersonal")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Personal
-              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -736,6 +801,24 @@ export default function ExpensesPage() {
           Continue to Usage
         </Button>
       </div>
+
+      <Dialog open={isUnifiedCreatorOpen} onOpenChange={setIsUnifiedCreatorOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add Expense</DialogTitle>
+            <DialogDescription>
+              Follow the steps to add a new expense to your trip.
+            </DialogDescription>
+          </DialogHeader>
+          <UnifiedExpenseCreator
+            defaultCurrency={displayCurrency}
+            defaultStartDate={defaultStartDate}
+            defaultEndDate={defaultEndDate}
+            onSave={handleSaveUnifiedExpense}
+            onCancel={() => setIsUnifiedCreatorOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={isAddDialogOpen}
