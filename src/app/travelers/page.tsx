@@ -3,7 +3,7 @@
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TripState } from "@/types";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { initialTripState } from "@/constants/initialState";
 import { sortTravelers } from "@/utils/tripStateUpdates";
@@ -55,6 +55,61 @@ export default function TravelersPage() {
   const [travelerToEdit, setTravelerToEdit] = useState<{ id: string; name: string } | null>(null);
 
   const { budgetData, isLoading } = useTripBudget(tripState);
+
+  const participationByTraveler = useMemo(() => {
+    const expenseNames = new Map<string, string>();
+    tripState.dailySharedExpenses.forEach((expense) => {
+      expenseNames.set(expense.id, expense.name);
+    });
+    tripState.dailyPersonalExpenses.forEach((expense) => {
+      expenseNames.set(expense.id, expense.name);
+    });
+    tripState.oneTimeSharedExpenses.forEach((expense) => {
+      expenseNames.set(expense.id, expense.name);
+    });
+    tripState.oneTimePersonalExpenses.forEach((expense) => {
+      expenseNames.set(expense.id, expense.name);
+    });
+
+    const participation = new Map<string, Set<string>>();
+    tripState.travelers.forEach((traveler) => {
+      participation.set(traveler.id, new Set());
+    });
+
+    const addParticipation = (travelerId: string, expenseId: string) => {
+      const expenseName = expenseNames.get(expenseId);
+      if (!expenseName) return;
+      const set = participation.get(travelerId);
+      if (!set) return;
+      set.add(expenseName);
+    };
+
+    tripState.oneTimeSharedExpenses.forEach((expense) => {
+      const travelerIds = tripState.usageCosts.oneTimeShared[expense.id] || [];
+      travelerIds.forEach((travelerId) => addParticipation(travelerId, expense.id));
+    });
+
+    tripState.oneTimePersonalExpenses.forEach((expense) => {
+      const travelerIds = tripState.usageCosts.oneTimePersonal[expense.id] || [];
+      travelerIds.forEach((travelerId) => addParticipation(travelerId, expense.id));
+    });
+
+    Object.values(tripState.usageCosts.days).forEach((dayUsage) => {
+      Object.entries(dayUsage.dailyShared).forEach(([expenseId, travelerIds]) => {
+        travelerIds.forEach((travelerId) => addParticipation(travelerId, expenseId));
+      });
+      Object.entries(dayUsage.dailyPersonal).forEach(([expenseId, travelerIds]) => {
+        travelerIds.forEach((travelerId) => addParticipation(travelerId, expenseId));
+      });
+    });
+
+    return new Map(
+      Array.from(participation.entries()).map(([travelerId, names]) => [
+        travelerId,
+        Array.from(names),
+      ])
+    );
+  }, [tripState]);
 
   const handleEditTraveler = (traveler: { id: string; name: string }) => {
     setTravelerToEdit(traveler);
@@ -225,6 +280,8 @@ export default function TravelersPage() {
           const costs = budgetData?.travelerCosts.get(traveler.id);
           const totalAmount = costs?.total.amount || 0;
           const isApproximate = costs?.total.isApproximate || false;
+          const participation = participationByTraveler.get(traveler.id) || [];
+          const participationSummary = participation.join(" | ");
 
           return (
             <Card key={traveler.id}>
@@ -234,6 +291,14 @@ export default function TravelersPage() {
                   <p className="text-sm text-muted-foreground mt-1">
                     {isLoading ? "Calculating..." : formatCurrency(totalAmount, tripState.displayCurrency, isApproximate)}
                   </p>
+                  {participation.length > 0 && (
+                    <p
+                      className="text-xs text-muted-foreground mt-1"
+                      title={participationSummary}
+                    >
+                      Participated in: {participationSummary}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -290,13 +355,21 @@ export default function TravelersPage() {
         </Card>
       )}
 
-      <div className="flex justify-end pt-4">
+      <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-between">
         <Button
+          variant="outline"
           onClick={() => router.push("/expenses")}
           size="lg"
           className="w-full sm:w-auto"
         >
-          Continue to Expenses
+          Back to Expenses
+        </Button>
+        <Button
+          onClick={() => router.push("/usage")}
+          size="lg"
+          className="w-full sm:w-auto"
+        >
+          Continue to Usage
         </Button>
       </div>
 

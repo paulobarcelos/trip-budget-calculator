@@ -7,6 +7,7 @@ import { migrateState } from "@/utils/stateMigrations";
 import { decodeState } from "@/utils/stateEncoding";
 import { UsageCalendar } from "@/components/UsageCalendar";
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { format, parseISO, isWithinInterval } from "date-fns";
 import {
   Dialog,
@@ -22,8 +23,11 @@ import { sortTravelers } from "@/utils/tripStateUpdates";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { useDayUsageStatus } from "@/hooks/useDayUsageStatus";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function UsagePage() {
+  const router = useRouter();
   const [tripState, setTripState] = useLocalStorage<TripState>(
     "tripState",
     initialTripState,
@@ -36,12 +40,34 @@ export default function UsagePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const { dayStatus } = useDayUsageStatus(tripState);
+  const availableDates = useMemo(
+    () => Array.from(dayStatus.keys()).sort(),
+    [dayStatus]
+  );
+
   const handleDaySelect = (date: Date) => {
     setSelectedDate(date);
     setIsDialogOpen(true);
   };
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+  const currentIndex = dateStr ? availableDates.indexOf(dateStr) : -1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < availableDates.length - 1;
+
+  const handlePrevDay = () => {
+    if (!hasPrev) return;
+    setSelectedDate(parseISO(availableDates[currentIndex - 1]));
+  };
+
+  const handleNextDay = () => {
+    if (!hasNext) return;
+    setSelectedDate(parseISO(availableDates[currentIndex + 1]));
+  };
+
+  const formatOriginalCurrency = (amount: number, currency: string) =>
+    `${currency} ${Number.isFinite(amount) ? amount.toFixed(2) : "0.00"}`;
 
   // Get expenses active on the selected date
   const activeDailyShared = useMemo(() => {
@@ -105,6 +131,36 @@ export default function UsagePage() {
     });
   };
 
+  const setDailyUsage = (
+    expenseId: string,
+    type: "dailyShared" | "dailyPersonal",
+    travelerIds: string[]
+  ) => {
+    if (!dateStr) return;
+
+    const currentDayUsage = tripState.usageCosts.days[dateStr] || {
+      dailyShared: {},
+      dailyPersonal: {},
+    };
+
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
+        days: {
+          ...tripState.usageCosts.days,
+          [dateStr]: {
+            ...currentDayUsage,
+            [type]: {
+              ...currentDayUsage[type],
+              [expenseId]: travelerIds,
+            },
+          },
+        },
+      },
+    });
+  };
+
   const handleUpdateOneTimeUsage = (
     expenseId: string,
     type: "oneTimeShared" | "oneTimePersonal",
@@ -127,6 +183,23 @@ export default function UsagePage() {
         [type]: {
           ...tripState.usageCosts[type],
           [expenseId]: newTravelers,
+        },
+      },
+    });
+  };
+
+  const setOneTimeUsage = (
+    expenseId: string,
+    type: "oneTimeShared" | "oneTimePersonal",
+    travelerIds: string[]
+  ) => {
+    setTripState({
+      ...tripState,
+      usageCosts: {
+        ...tripState.usageCosts,
+        [type]: {
+          ...tripState.usageCosts[type],
+          [expenseId]: travelerIds,
         },
       },
     });
@@ -230,7 +303,7 @@ export default function UsagePage() {
                     <CardTitle className="text-base font-medium flex justify-between">
                       {expense.name}
                       <Badge variant="outline">
-                        {expense.currency} {expense.totalCost}
+                        {formatOriginalCurrency(expense.totalCost, expense.currency)}
                       </Badge>
                     </CardTitle>
                   </CardHeader>
@@ -242,6 +315,16 @@ export default function UsagePage() {
                       }
                       onToggleTraveler={(tId, selected) =>
                         handleUpdateOneTimeUsage(expense.id, "oneTimeShared", tId, selected)
+                      }
+                      onSelectAll={() =>
+                        setOneTimeUsage(
+                          expense.id,
+                          "oneTimeShared",
+                          tripState.travelers.map((traveler) => traveler.id)
+                        )
+                      }
+                      onClearAll={() =>
+                        setOneTimeUsage(expense.id, "oneTimeShared", [])
                       }
                       onCreateTraveler={handleCreateTraveler}
                     />
@@ -261,7 +344,7 @@ export default function UsagePage() {
                     <CardTitle className="text-base font-medium flex justify-between">
                       {expense.name}
                       <Badge variant="outline">
-                        {expense.currency} {expense.totalCost}
+                        {formatOriginalCurrency(expense.totalCost, expense.currency)}
                       </Badge>
                     </CardTitle>
                   </CardHeader>
@@ -274,6 +357,16 @@ export default function UsagePage() {
                       onToggleTraveler={(tId, selected) =>
                         handleUpdateOneTimeUsage(expense.id, "oneTimePersonal", tId, selected)
                       }
+                      onSelectAll={() =>
+                        setOneTimeUsage(
+                          expense.id,
+                          "oneTimePersonal",
+                          tripState.travelers.map((traveler) => traveler.id)
+                        )
+                      }
+                      onClearAll={() =>
+                        setOneTimeUsage(expense.id, "oneTimePersonal", [])
+                      }
                       onCreateTraveler={handleCreateTraveler}
                     />
                   </CardContent>
@@ -284,15 +377,49 @@ export default function UsagePage() {
         </TabsContent>
       </Tabs>
 
+      <div className="flex justify-start pt-4">
+        <Button
+          variant="outline"
+          onClick={() => router.push("/travelers")}
+          className="w-full sm:w-auto"
+        >
+          Back to Travelers
+        </Button>
+      </div>
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>
-              Usage for {selectedDate ? format(selectedDate, "MMMM d, yyyy") : ""}
-            </DialogTitle>
-            <DialogDescription>
-              Select who was present for each expense on this day.
-            </DialogDescription>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <DialogTitle>
+                  Usage for {selectedDate ? format(selectedDate, "MMMM d, yyyy") : ""}
+                </DialogTitle>
+                <DialogDescription>
+                  Select who was present for each expense on this day.
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePrevDay}
+                  disabled={!hasPrev}
+                  aria-label="Previous day"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleNextDay}
+                  disabled={!hasNext}
+                  aria-label="Next day"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
             <div className="pt-2">
               <Button
                 variant="outline"
@@ -319,7 +446,7 @@ export default function UsagePage() {
                     <div className="flex justify-between items-center">
                       <span className="font-medium">{expense.name}</span>
                       <Badge variant="secondary" className="text-xs">
-                        {expense.currency} {expense.totalCost} (Total)
+                        {formatOriginalCurrency(expense.totalCost, expense.currency)} (Total)
                       </Badge>
                     </div>
                     <TravelerSelector
@@ -329,6 +456,16 @@ export default function UsagePage() {
                       }
                       onToggleTraveler={(tId, selected) =>
                         handleUpdateDailyUsage(expense.id, "dailyShared", tId, selected)
+                      }
+                      onSelectAll={() =>
+                        setDailyUsage(
+                          expense.id,
+                          "dailyShared",
+                          tripState.travelers.map((traveler) => traveler.id)
+                        )
+                      }
+                      onClearAll={() =>
+                        setDailyUsage(expense.id, "dailyShared", [])
                       }
                       onCreateTraveler={handleCreateTraveler}
                     />
@@ -348,7 +485,7 @@ export default function UsagePage() {
                     <div className="flex justify-between items-center">
                       <span className="font-medium">{expense.name}</span>
                       <Badge variant="secondary" className="text-xs">
-                        {expense.currency} {expense.dailyCost}/day
+                        {formatOriginalCurrency(expense.dailyCost, expense.currency)}/day
                       </Badge>
                     </div>
                     <TravelerSelector
@@ -358,6 +495,16 @@ export default function UsagePage() {
                       }
                       onToggleTraveler={(tId, selected) =>
                         handleUpdateDailyUsage(expense.id, "dailyPersonal", tId, selected)
+                      }
+                      onSelectAll={() =>
+                        setDailyUsage(
+                          expense.id,
+                          "dailyPersonal",
+                          tripState.travelers.map((traveler) => traveler.id)
+                        )
+                      }
+                      onClearAll={() =>
+                        setDailyUsage(expense.id, "dailyPersonal", [])
                       }
                       onCreateTraveler={handleCreateTraveler}
                     />

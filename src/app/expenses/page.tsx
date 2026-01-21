@@ -793,13 +793,21 @@ export default function ExpensesPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end pt-4">
+      <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-between">
         <Button
-          onClick={() => router.push("/usage")}
+          variant="outline"
+          onClick={() => router.push("/")}
           size="lg"
           className="w-full sm:w-auto"
         >
-          Continue to Usage
+          Back to Overview
+        </Button>
+        <Button
+          onClick={() => router.push("/travelers")}
+          size="lg"
+          className="w-full sm:w-auto"
+        >
+          Continue to Travelers
         </Button>
       </div>
 

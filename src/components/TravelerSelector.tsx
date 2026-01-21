@@ -22,6 +22,8 @@ interface TravelerSelectorProps {
     travelers: Traveler[]
     selectedTravelerIds: string[]
     onToggleTraveler: (travelerId: string, selected: boolean) => void
+    onSelectAll?: () => void
+    onClearAll?: () => void
     onCreateTraveler: (name: string) => void
 }
 
@@ -29,6 +31,8 @@ export function TravelerSelector({
     travelers,
     selectedTravelerIds,
     onToggleTraveler,
+    onSelectAll,
+    onClearAll,
     onCreateTraveler,
 }: TravelerSelectorProps) {
     const [open, setOpen] = React.useState(false)
@@ -84,14 +88,38 @@ export function TravelerSelector({
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="start">
+                <PopoverContent className="w-[320px] p-0" align="start">
                     <Command>
                         <CommandInput
                             placeholder="Search traveler..."
                             value={inputValue}
                             onValueChange={setInputValue}
                         />
-                        <CommandList>
+                        {(onSelectAll || onClearAll) && (
+                            <div className="flex items-center justify-between gap-2 px-2 py-2 border-b">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2"
+                                    type="button"
+                                    onClick={onSelectAll}
+                                    disabled={travelers.length === 0}
+                                >
+                                    Select all
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2"
+                                    type="button"
+                                    onClick={onClearAll}
+                                    disabled={selectedTravelerIds.length === 0}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        )}
+                        <CommandList className="max-h-60 overflow-y-auto">
                             <CommandEmpty>
                                 <div className="p-2 flex flex-col items-center gap-2">
                                     <p className="text-sm text-muted-foreground">No traveler found.</p>
