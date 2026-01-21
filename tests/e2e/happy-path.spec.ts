@@ -12,26 +12,28 @@ test('create trip, add traveler and expense, mark usage, export/import budget', 
   // 3. Add Expense
   // Wait for the page to be ready
   await expect(page.getByRole('heading', { name: 'Expenses', level: 1 })).toBeVisible();
-  // Switch to One-time Expenses tab to avoid date picker complexity
-  await page.getByRole('tab', { name: 'One-time Expenses' }).click();
-
-  // Open Add Dialog
-  await page.getByRole('button', { name: 'Add Shared' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-
-  await page.getByLabel('Name').fill('Dinner');
-  await page.getByLabel('Total Cost').fill('150');
-
-  // Verify values are filled
-  await expect(page.getByLabel('Name')).toHaveValue('Dinner');
-  await expect(page.getByLabel('Total Cost')).toHaveValue('150');
-
-  // Assuming "Daily Occupancy" is default, let's select "Even Split" if needed or just stick with default.
-  // The original test selected "Even-day split".
-  // In the new form, splitMode is a select or radio?
-  // Looking at ExpensesPage code, it seems to be in the state but I didn't see the input in the truncated view.
-  // I'll assume default is fine or just fill required fields.
+  // Open unified creator
   await page.getByRole('button', { name: 'Add Expense' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+
+  // Step 1: name
+  await dialog.getByRole('textbox').fill('Dinner');
+  await dialog.getByRole('button', { name: 'Next' }).click();
+
+  // Step 2: choose One-off to avoid date picker
+  await dialog.getByRole('button', { name: 'One-off' }).click();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+
+  // Step 3: amount
+  await dialog.getByPlaceholder('0.00').fill('150');
+  await dialog.getByRole('button', { name: 'Next' }).click();
+
+  // Step 4: keep Shared default, save
+  await dialog.getByRole('button', { name: 'Save Expense' }).click();
+
+  // Switch to One-off Expenses tab to view the new item
+  await page.getByRole('tab', { name: 'One-off Expenses' }).click();
   await expect(page.getByText('Dinner')).toBeVisible();
 
   // 4. Navigate to Travelers

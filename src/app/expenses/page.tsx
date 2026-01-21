@@ -47,6 +47,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { format, parseISO } from "date-fns";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { UnifiedExpenseCreator, ExpenseCreationData } from "@/components/UnifiedExpenseCreator";
+import { cn } from "@/lib/utils";
 
 import { getTripDateRange } from "@/utils/tripDates";
 
@@ -590,7 +591,7 @@ export default function ExpensesPage() {
                       <div>
                         <h3 className="font-semibold text-lg">{expense.name}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {expense.currency} {expense.totalCost.toFixed(2)} total • {expense.splitMode === 'dailyOccupancy' ? 'Daily Occupancy' : 'Even Split'}
+                          {expense.currency} {expense.totalCost.toFixed(2)} total • {expense.splitMode === 'dailyOccupancy' ? 'Daily Cost Split' : 'Person-Day Rate'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {format(parseISO(expense.startDate), "MMM d")} - {format(parseISO(expense.endDate), "MMM d")}
@@ -889,30 +890,34 @@ export default function ExpensesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  Split Mode
-                </Label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={newDailySharedExpense.splitMode === "dailyOccupancy"}
-                      onChange={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "dailyOccupancy" })}
-                      className="accent-primary-600"
-                    />
-                    Daily Occupancy
-                    <InfoTooltip content="Cost is divided based on the number of days each traveler was present." />
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={newDailySharedExpense.splitMode === "stayWeighted"}
-                      onChange={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "stayWeighted" })}
-                      className="accent-primary-600"
-                    />
-                    Even-day Split
-                    <InfoTooltip content="Cost is divided equally among all selected travelers." />
-                  </label>
+                <Label className="flex items-center gap-2">Split Mode</Label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "dailyOccupancy" })}
+                    className={cn(
+                      "flex flex-col items-start rounded-xl border-2 p-4 text-left transition-all hover:bg-muted/50 space-y-1",
+                      newDailySharedExpense.splitMode === "dailyOccupancy" ? "border-primary bg-primary/5" : "border-muted"
+                    )}
+                  >
+                    <span className="font-semibold">Daily Cost Split</span>
+                    <span className="text-sm text-muted-foreground">
+                      Fixed daily cost, split among who&apos;s present that day. Fewer people = higher share.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewDailySharedExpense({ ...newDailySharedExpense, splitMode: "stayWeighted" })}
+                    className={cn(
+                      "flex flex-col items-start rounded-xl border-2 p-4 text-left transition-all hover:bg-muted/50 space-y-1",
+                      newDailySharedExpense.splitMode === "stayWeighted" ? "border-primary bg-primary/5" : "border-muted"
+                    )}
+                  >
+                    <span className="font-semibold">Person-Day Rate</span>
+                    <span className="text-sm text-muted-foreground">
+                      Total cost / person-days. Same per-person-day rate; occupancy doesn&apos;t spike shares.
+                    </span>
+                  </button>
                 </div>
               </div>
               {error && <div className="text-sm text-destructive">{error}</div>}

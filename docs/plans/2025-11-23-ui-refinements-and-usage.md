@@ -31,7 +31,7 @@ Address user feedback regarding UI placement, instructions, and the start page, 
 ### 4. Contextual Info System (Split Mode)
 - **Component:** Create a reusable `InfoTooltip` or `FieldInfo` component (using Shadcn `Tooltip` or `Popover`).
 - **Apply:** Restore the "Split Mode" explanation in `ExpensesPage` using this new component.
-  - *Even Split:* "Cost is divided equally among all selected travelers."
+- *Person-Day Rate:* "Total cost is split by total person-days across the stay."
   - *By Time:* "Cost is divided based on the number of days each traveler was present."
 
 ## Phase 2: Usage Page Revamp (Core)

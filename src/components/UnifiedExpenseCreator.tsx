@@ -8,13 +8,6 @@ import { ArrowRight, ArrowLeft, Check, Calendar, Users, User, DollarSign, Clock,
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { CurrencySelect } from "@/components/CurrencySelect";
 import { cn } from "@/lib/utils";
@@ -356,22 +349,34 @@ export function UnifiedExpenseCreator({
                                     {isShared && isDaily && (
                                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                                             <Label>Split Mode</Label>
-                                            <Select
-                                                value={splitMode}
-                                                onValueChange={(v: any) => setSplitMode(v)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="dailyOccupancy">
-                                                        Daily Occupancy (Based on who is there)
-                                                    </SelectItem>
-                                                    <SelectItem value="stayWeighted">
-                                                        Even Split (Split equally by total cost)
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSplitMode("dailyOccupancy")}
+                                                    className={cn(
+                                                        "flex flex-col items-start rounded-xl border-2 p-4 text-left transition-all hover:bg-muted/50 space-y-1",
+                                                        splitMode === "dailyOccupancy" ? "border-primary bg-primary/5" : "border-muted"
+                                                    )}
+                                                >
+                                                    <span className="font-semibold">Daily Cost Split</span>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Fixed daily cost, split among who&apos;s present that day. Fewer people = higher share.
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSplitMode("stayWeighted")}
+                                                    className={cn(
+                                                        "flex flex-col items-start rounded-xl border-2 p-4 text-left transition-all hover:bg-muted/50 space-y-1",
+                                                        splitMode === "stayWeighted" ? "border-primary bg-primary/5" : "border-muted"
+                                                    )}
+                                                >
+                                                    <span className="font-semibold">Person-Day Rate</span>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Total cost / person-days. Same per-person-day rate; occupancy doesn&apos;t spike shares.
+                                                    </span>
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
