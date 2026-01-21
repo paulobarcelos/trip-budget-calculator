@@ -19,7 +19,7 @@ export default function LandingPage() {
           <FeatureCard
             icon={Wallet}
             title="1. Add Expenses"
-            description="Log shared and personal costs in any currency. We handle the conversions."
+            description="Log shared and individual costs in any currency. We handle the conversions."
           />
 
           <FeatureCard

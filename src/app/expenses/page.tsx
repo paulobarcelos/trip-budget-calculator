@@ -561,8 +561,8 @@ export default function ExpensesPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="daily">Daily Expenses</TabsTrigger>
-          <TabsTrigger value="onetime">One-time Expenses</TabsTrigger>
+          <TabsTrigger value="daily">Time-Bound Expenses</TabsTrigger>
+          <TabsTrigger value="onetime">One-off Expenses</TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily" className="space-y-8">
@@ -571,17 +571,17 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold flex items-center gap-2">
-                  Shared Daily Expenses
+                  Shared Time-Bound Expenses
                   <InfoTooltip content="Recurring costs split among the group (e.g., Hotels, Car Rental)." />
                 </h2>
-                <p className="text-sm text-muted-foreground">Expenses that occur every day and are shared.</p>
+                <p className="text-sm text-muted-foreground">Expenses that span multiple days and are shared.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {tripState.dailySharedExpenses.length === 0 ? (
                 <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                  <p className="text-muted-foreground">No shared daily expenses.</p>
+                  <p className="text-muted-foreground">No shared time-bound expenses.</p>
                 </div>
               ) : (
                 tripState.dailySharedExpenses.map((expense) => (
@@ -628,17 +628,17 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold flex items-center gap-2">
-                  Personal Daily Expenses
+                  Individual Time-Bound Expenses
                   <InfoTooltip content="Recurring costs for individuals (e.g., Daily Food Allowance)." />
                 </h2>
-                <p className="text-sm text-muted-foreground">Expenses that occur every day for a specific person.</p>
+                <p className="text-sm text-muted-foreground">Expenses that span multiple days for a specific person.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {tripState.dailyPersonalExpenses.length === 0 ? (
                 <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                  <p className="text-muted-foreground">No personal daily expenses.</p>
+                  <p className="text-muted-foreground">No individual time-bound expenses.</p>
                 </div>
               ) : (
                 tripState.dailyPersonalExpenses.map((expense) => (
@@ -687,7 +687,7 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold flex items-center gap-2">
-                  Shared One-Time Expenses
+                  Shared One-off Expenses
                   <InfoTooltip content="Single costs split among the group (e.g., Group Dinner, Tickets)." />
                 </h2>
                 <p className="text-sm text-muted-foreground">One-off expenses shared by the group.</p>
@@ -697,7 +697,7 @@ export default function ExpensesPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {tripState.oneTimeSharedExpenses.length === 0 ? (
                 <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                  <p className="text-muted-foreground">No shared one-time expenses.</p>
+                  <p className="text-muted-foreground">No shared one-off expenses.</p>
                 </div>
               ) : (
                 tripState.oneTimeSharedExpenses.map((expense) => (
@@ -741,7 +741,7 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold flex items-center gap-2">
-                  Personal One-Time Expenses
+                  Individual One-off Expenses
                   <InfoTooltip content="Single costs for individuals (e.g., Souvenirs, Personal Shopping)." />
                 </h2>
                 <p className="text-sm text-muted-foreground">One-off expenses for a specific person.</p>
@@ -751,7 +751,7 @@ export default function ExpensesPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {tripState.oneTimePersonalExpenses.length === 0 ? (
                 <div className="col-span-full text-center py-8 border-2 border-dashed rounded-xl border-muted-foreground/25">
-                  <p className="text-muted-foreground">No personal one-time expenses.</p>
+                  <p className="text-muted-foreground">No individual one-off expenses.</p>
                 </div>
               ) : (
                 tripState.oneTimePersonalExpenses.map((expense) => (

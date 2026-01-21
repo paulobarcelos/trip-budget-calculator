@@ -202,8 +202,8 @@ export default function UsagePage() {
 
       <Tabs defaultValue="daily" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="daily">Daily Usage</TabsTrigger>
-          <TabsTrigger value="onetime">One-time Expenses</TabsTrigger>
+          <TabsTrigger value="daily">Time-Bound Usage</TabsTrigger>
+          <TabsTrigger value="onetime">One-off Expenses</TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily" className="space-y-4">
@@ -220,9 +220,9 @@ export default function UsagePage() {
         <TabsContent value="onetime" className="space-y-4">
           <div className="grid gap-6">
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Shared Expenses</h3>
+              <h3 className="text-lg font-semibold">Shared One-off Expenses</h3>
               {tripState.oneTimeSharedExpenses.length === 0 && (
-                <p className="text-muted-foreground text-sm">No one-time shared expenses.</p>
+                <p className="text-muted-foreground text-sm">No shared one-off expenses.</p>
               )}
               {tripState.oneTimeSharedExpenses.map((expense) => (
                 <Card key={expense.id}>
@@ -251,9 +251,9 @@ export default function UsagePage() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Personal Expenses</h3>
+              <h3 className="text-lg font-semibold">Individual One-off Expenses</h3>
               {tripState.oneTimePersonalExpenses.length === 0 && (
-                <p className="text-muted-foreground text-sm">No one-time personal expenses.</p>
+                <p className="text-muted-foreground text-sm">No individual one-off expenses.</p>
               )}
               {tripState.oneTimePersonalExpenses.map((expense) => (
                 <Card key={expense.id}>
@@ -309,10 +309,10 @@ export default function UsagePage() {
             <div className="space-y-6 py-4">
               <div className="space-y-4">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-                  Daily Shared Expenses
+                  Shared Time-Bound Expenses
                 </h3>
                 {activeDailyShared.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No active shared expenses for this day.</p>
+                  <p className="text-sm text-muted-foreground">No active shared time-bound expenses for this day.</p>
                 )}
                 {activeDailyShared.map((expense) => (
                   <div key={expense.id} className="space-y-2 border rounded-lg p-3">
@@ -338,10 +338,10 @@ export default function UsagePage() {
 
               <div className="space-y-4">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-                  Daily Personal Expenses
+                  Individual Time-Bound Expenses
                 </h3>
                 {activeDailyPersonal.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No active personal expenses for this day.</p>
+                  <p className="text-sm text-muted-foreground">No active individual time-bound expenses for this day.</p>
                 )}
                 {activeDailyPersonal.map((expense) => (
                   <div key={expense.id} className="space-y-2 border rounded-lg p-3">
