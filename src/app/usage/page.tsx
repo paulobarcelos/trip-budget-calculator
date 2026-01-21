@@ -389,38 +389,34 @@ export default function UsagePage() {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <DialogTitle>
-                  Usage for {selectedDate ? format(selectedDate, "MMMM d, yyyy") : ""}
-                </DialogTitle>
-                <DialogDescription>
-                  Select who was present for each expense on this day.
-                </DialogDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handlePrevDay}
-                  disabled={!hasPrev}
-                  aria-label="Previous day"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleNextDay}
-                  disabled={!hasNext}
-                  aria-label="Next day"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+          <DialogHeader className="pr-10">
+            <div className="flex items-center justify-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handlePrevDay}
+                disabled={!hasPrev}
+                aria-label="Previous day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <DialogTitle className="text-center">
+                {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "Select a day"}
+              </DialogTitle>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleNextDay}
+                disabled={!hasNext}
+                aria-label="Next day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            <div className="pt-2">
+            <DialogDescription className="text-center">
+              Select who was present for each expense on this day.
+            </DialogDescription>
+            <div className="pt-2 flex justify-center sm:justify-start">
               <Button
                 variant="outline"
                 size="sm"

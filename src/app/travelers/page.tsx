@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { initialTripState } from "@/constants/initialState";
-import { sortTravelers } from "@/utils/tripStateUpdates";
+import { getDayCount, sortTravelers } from "@/utils/tripStateUpdates";
 import { Instructions } from "@/components/Instructions";
 import { instructions } from "./instructions";
 import { migrateState } from "@/utils/stateMigrations";
@@ -37,6 +37,7 @@ interface TravelerToDelete {
 
 import { useTripBudget } from "@/hooks/useTripBudget";
 import { formatCurrency } from "@/utils/currencyFormatting";
+import { addDays, format, parseISO } from "date-fns";
 
 export default function TravelersPage() {
   const router = useRouter();
@@ -57,56 +58,199 @@ export default function TravelersPage() {
   const { budgetData, isLoading } = useTripBudget(tripState);
 
   const participationByTraveler = useMemo(() => {
-    const expenseNames = new Map<string, string>();
-    tripState.dailySharedExpenses.forEach((expense) => {
-      expenseNames.set(expense.id, expense.name);
-    });
-    tripState.dailyPersonalExpenses.forEach((expense) => {
-      expenseNames.set(expense.id, expense.name);
-    });
-    tripState.oneTimeSharedExpenses.forEach((expense) => {
-      expenseNames.set(expense.id, expense.name);
-    });
-    tripState.oneTimePersonalExpenses.forEach((expense) => {
-      expenseNames.set(expense.id, expense.name);
-    });
-
-    const participation = new Map<string, Set<string>>();
-    tripState.travelers.forEach((traveler) => {
-      participation.set(traveler.id, new Set());
-    });
-
-    const addParticipation = (travelerId: string, expenseId: string) => {
-      const expenseName = expenseNames.get(expenseId);
-      if (!expenseName) return;
-      const set = participation.get(travelerId);
-      if (!set) return;
-      set.add(expenseName);
+    type ParticipationEntry = {
+      id: string;
+      name: string;
+      startDate?: string;
+      endDate?: string;
+      amount: number;
+      currency: string;
     };
+
+    const participation = new Map<string, ParticipationEntry[]>();
+    tripState.travelers.forEach((traveler) => {
+      participation.set(traveler.id, []);
+    });
+
+    const addEntry = (travelerId: string, entry: ParticipationEntry) => {
+      const list = participation.get(travelerId);
+      if (!list) return;
+      list.push(entry);
+    };
+
+    const buildRanges = (
+      expenseId: string,
+      name: string,
+      currency: string,
+      costByDate: Map<string, number>,
+    ): ParticipationEntry[] => {
+      const dates = Array.from(costByDate.keys()).sort();
+      const ranges: ParticipationEntry[] = [];
+      let currentStart = "";
+      let currentEnd = "";
+      let currentSum = 0;
+      let prevDate: Date | null = null;
+
+      dates.forEach((dateStr) => {
+        const cost = costByDate.get(dateStr) ?? 0;
+        const date = parseISO(dateStr);
+        if (!currentStart) {
+          currentStart = dateStr;
+          currentEnd = dateStr;
+          currentSum = cost;
+          prevDate = date;
+          return;
+        }
+
+        const expectedNext = prevDate ? addDays(prevDate, 1) : null;
+        if (expectedNext && format(expectedNext, "yyyy-MM-dd") === dateStr) {
+          currentEnd = dateStr;
+          currentSum += cost;
+          prevDate = date;
+          return;
+        }
+
+        ranges.push({
+          id: `${expenseId}-${currentStart}-${currentEnd}`,
+          name,
+          startDate: currentStart,
+          endDate: currentEnd,
+          amount: currentSum,
+          currency,
+        });
+
+        currentStart = dateStr;
+        currentEnd = dateStr;
+        currentSum = cost;
+        prevDate = date;
+      });
+
+      if (currentStart) {
+        ranges.push({
+          id: `${expenseId}-${currentStart}-${currentEnd}`,
+          name,
+          startDate: currentStart,
+          endDate: currentEnd,
+          amount: currentSum,
+          currency,
+        });
+      }
+
+      return ranges;
+    };
+
+    tripState.dailySharedExpenses.forEach((expense) => {
+      const relevantDays = Object.entries(tripState.usageCosts.days)
+        .filter(([dateStr]) => dateStr >= expense.startDate && dateStr < expense.endDate)
+        .map(([dateStr, dayUsage]) => ({
+          dateStr,
+          travelerIds: dayUsage.dailyShared[expense.id] || [],
+        }))
+        .filter(({ travelerIds }) => travelerIds.length > 0);
+
+      if (relevantDays.length === 0) return;
+
+      const costByTravelerDate = new Map<string, Map<string, number>>();
+      const addCost = (travelerId: string, dateStr: string, amount: number) => {
+        if (!costByTravelerDate.has(travelerId)) {
+          costByTravelerDate.set(travelerId, new Map());
+        }
+        const perTraveler = costByTravelerDate.get(travelerId)!;
+        perTraveler.set(dateStr, (perTraveler.get(dateStr) ?? 0) + amount);
+      };
+
+      if (expense.splitMode === "stayWeighted") {
+        const totalNights = relevantDays.reduce(
+          (sum, day) => sum + day.travelerIds.length,
+          0
+        );
+        if (totalNights === 0) return;
+        const perNight = expense.totalCost / totalNights;
+
+        relevantDays.forEach(({ dateStr, travelerIds }) => {
+          travelerIds.forEach((travelerId) => {
+            addCost(travelerId, dateStr, perNight);
+          });
+        });
+      } else {
+        const dayCount = getDayCount(expense.startDate, expense.endDate);
+        const dailyCost = dayCount > 0 ? expense.totalCost / dayCount : expense.totalCost;
+        relevantDays.forEach(({ dateStr, travelerIds }) => {
+          const perPerson = dailyCost / travelerIds.length;
+          travelerIds.forEach((travelerId) => {
+            addCost(travelerId, dateStr, perPerson);
+          });
+        });
+      }
+
+      costByTravelerDate.forEach((costByDate, travelerId) => {
+        const ranges = buildRanges(expense.id, expense.name, expense.currency, costByDate);
+        ranges.forEach((entry) => addEntry(travelerId, entry));
+      });
+    });
+
+    tripState.dailyPersonalExpenses.forEach((expense) => {
+      const costByTravelerDate = new Map<string, Map<string, number>>();
+      const addCost = (travelerId: string, dateStr: string, amount: number) => {
+        if (!costByTravelerDate.has(travelerId)) {
+          costByTravelerDate.set(travelerId, new Map());
+        }
+        const perTraveler = costByTravelerDate.get(travelerId)!;
+        perTraveler.set(dateStr, (perTraveler.get(dateStr) ?? 0) + amount);
+      };
+
+      Object.entries(tripState.usageCosts.days)
+        .filter(([dateStr]) => dateStr >= expense.startDate && dateStr < expense.endDate)
+        .forEach(([dateStr, dayUsage]) => {
+          const travelerIds = dayUsage.dailyPersonal[expense.id] || [];
+          travelerIds.forEach((travelerId) => {
+            addCost(travelerId, dateStr, expense.dailyCost);
+          });
+        });
+
+      costByTravelerDate.forEach((costByDate, travelerId) => {
+        const ranges = buildRanges(expense.id, expense.name, expense.currency, costByDate);
+        ranges.forEach((entry) => addEntry(travelerId, entry));
+      });
+    });
 
     tripState.oneTimeSharedExpenses.forEach((expense) => {
       const travelerIds = tripState.usageCosts.oneTimeShared[expense.id] || [];
-      travelerIds.forEach((travelerId) => addParticipation(travelerId, expense.id));
+      if (travelerIds.length === 0) return;
+      const costPerPerson = expense.totalCost / travelerIds.length;
+      travelerIds.forEach((travelerId) => {
+        addEntry(travelerId, {
+          id: `${expense.id}-one-time`,
+          name: expense.name,
+          amount: costPerPerson,
+          currency: expense.currency,
+        });
+      });
     });
 
     tripState.oneTimePersonalExpenses.forEach((expense) => {
       const travelerIds = tripState.usageCosts.oneTimePersonal[expense.id] || [];
-      travelerIds.forEach((travelerId) => addParticipation(travelerId, expense.id));
-    });
-
-    Object.values(tripState.usageCosts.days).forEach((dayUsage) => {
-      Object.entries(dayUsage.dailyShared).forEach(([expenseId, travelerIds]) => {
-        travelerIds.forEach((travelerId) => addParticipation(travelerId, expenseId));
-      });
-      Object.entries(dayUsage.dailyPersonal).forEach(([expenseId, travelerIds]) => {
-        travelerIds.forEach((travelerId) => addParticipation(travelerId, expenseId));
+      travelerIds.forEach((travelerId) => {
+        addEntry(travelerId, {
+          id: `${expense.id}-one-time`,
+          name: expense.name,
+          amount: expense.totalCost,
+          currency: expense.currency,
+        });
       });
     });
 
     return new Map(
-      Array.from(participation.entries()).map(([travelerId, names]) => [
+      Array.from(participation.entries()).map(([travelerId, entries]) => [
         travelerId,
-        Array.from(names),
+        entries.sort((a, b) => {
+          if (a.startDate && b.startDate) {
+            return a.startDate.localeCompare(b.startDate) || a.name.localeCompare(b.name);
+          }
+          if (a.startDate) return -1;
+          if (b.startDate) return 1;
+          return a.name.localeCompare(b.name);
+        }),
       ])
     );
   }, [tripState]);
@@ -281,8 +425,6 @@ export default function TravelersPage() {
           const totalAmount = costs?.total.amount || 0;
           const isApproximate = costs?.total.isApproximate || false;
           const participation = participationByTraveler.get(traveler.id) || [];
-          const participationSummary = participation.join(" | ");
-
           return (
             <Card key={traveler.id}>
               <CardContent className="p-6 flex items-center justify-between">
@@ -292,11 +434,23 @@ export default function TravelersPage() {
                     {isLoading ? "Calculating..." : formatCurrency(totalAmount, tripState.displayCurrency, isApproximate)}
                   </p>
                   {participation.length > 0 && (
-                    <p
-                      className="text-xs text-muted-foreground mt-1"
-                      title={participationSummary}
-                    >
-                      Participated in: {participationSummary}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {participation.map((entry, index) => (
+                        <span key={entry.id}>
+                          {index > 0 ? " • " : ""}
+                          <span className="font-semibold">{entry.name}</span>{" "}
+                          {formatCurrency(entry.amount, entry.currency, false)}
+                          {entry.startDate && entry.endDate && (
+                            <>
+                              {" "}
+                              <span className="italic">
+                                ({format(parseISO(entry.startDate), "dd-MM")} →{" "}
+                                {format(parseISO(entry.endDate), "dd-MM")})
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      ))}
                     </p>
                   )}
                 </div>

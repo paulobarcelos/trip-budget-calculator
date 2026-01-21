@@ -89,37 +89,13 @@ export function TravelerSelector({
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[320px] p-0" align="start">
-                    <Command>
+                    <Command className="h-[260px]">
                         <CommandInput
                             placeholder="Search traveler..."
                             value={inputValue}
                             onValueChange={setInputValue}
                         />
-                        {(onSelectAll || onClearAll) && (
-                            <div className="flex items-center justify-between gap-2 px-2 py-2 border-b">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-2"
-                                    type="button"
-                                    onClick={onSelectAll}
-                                    disabled={travelers.length === 0}
-                                >
-                                    Select all
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-2"
-                                    type="button"
-                                    onClick={onClearAll}
-                                    disabled={selectedTravelerIds.length === 0}
-                                >
-                                    Clear
-                                </Button>
-                            </div>
-                        )}
-                        <CommandList className="max-h-60 overflow-y-auto">
+                        <CommandList className="flex-1 min-h-0 overflow-y-auto pr-1">
                             <CommandEmpty>
                                 <div className="p-2 flex flex-col items-center gap-2">
                                     <p className="text-sm text-muted-foreground">No traveler found.</p>
@@ -159,6 +135,30 @@ export function TravelerSelector({
                     </Command>
                 </PopoverContent>
             </Popover>
+            {(onSelectAll || onClearAll) && (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        type="button"
+                        onClick={onSelectAll}
+                        disabled={travelers.length === 0}
+                    >
+                        Select all
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        type="button"
+                        onClick={onClearAll}
+                        disabled={selectedTravelerIds.length === 0}
+                    >
+                        Clear
+                    </Button>
+                </div>
+            )}
         </div>
     )
 }
