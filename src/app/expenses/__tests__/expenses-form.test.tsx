@@ -45,94 +45,96 @@ vi.mock('@/hooks/useLocalStorage', () => {
   };
 });
 
-describe('ExpensesPage daily shared form', () => {
+describe('ExpensesPage unified creator flow', () => {
   beforeEach(() => {
     tripState = structuredClone(baseTripState);
     capturedState = null;
   });
 
-  it('adds a daily shared expense with selected split mode and updates per-day preview', async () => {
+  it('adds a daily shared expense (Time-Bound, Shared)', async () => {
     const user = userEvent.setup();
     renderWithProviders(<ExpensesPage />);
 
-    // Click "Add Shared" in the Daily Expenses tab (default active)
-    await user.click(screen.getByRole('button', { name: /Add Shared/i }));
+    // 1. Open Unified Creator
+    await user.click(screen.getByRole('button', { name: /Add Expense/i }));
 
-    // Wait for dialog to open
-    const dialog = await screen.findByRole('dialog');
+    // 2. Step 1: Name
+    const nameInput = await screen.findByPlaceholderText(/e\.g\., Airbnb/i);
+    await user.type(nameInput, 'Hotel');
+    await user.click(screen.getByRole('button', { name: /Next/i }));
 
-    const nameInputs = within(dialog).getAllByLabelText('Name');
-    fireEvent.change(nameInputs[0], {
-      target: { value: 'Hotel' },
-    });
+    // 3. Step 2: Type (Time-Bound)
+    // Wait for Time-Bound button to be visible
+    const timeBoundBtn = await screen.findByRole('button', { name: /Time-Bound/i });
+    await user.click(timeBoundBtn);
+    await user.click(screen.getByRole('button', { name: /Next/i }));
 
-    // Select split mode (assuming RadioGroup is used)
-    const splitRadios = within(dialog).getAllByLabelText(/Even-day split/i);
-    await user.click(splitRadios[0]);
+    // 4. Step 3: Cost
+    const costInput = await screen.findByPlaceholderText('0.00');
+    await user.type(costInput, '300');
+    await user.click(screen.getByRole('button', { name: /Next/i }));
 
-    const costInputs = within(dialog).getAllByLabelText(/Total Cost/i);
-    fireEvent.change(costInputs[0], {
-      target: { value: '300' },
-    });
-
-    await user.click(
-      screen.getByRole('button', { name: 'Add Expense' }),
-    );
-
-    // Wait for dialog to close and expense to appear in the list
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-
-    await screen.findByText('Hotel');
-    // The split mode text is "Even Split" in the list view
-    expect(screen.getByText(/Even Split/)).toBeInTheDocument();
-    // The list view shows total cost, not per day
-    expect(screen.getByText(/USD 300.00 total/)).toBeInTheDocument();
-
-    expect(capturedState?.dailySharedExpenses[0]?.splitMode).toBe(
-      'stayWeighted',
-    );
-    expect(capturedState?.dailySharedExpenses[0]?.totalCost).toBe(300);
-  });
-
-  it('adds a daily personal expense with dates', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<ExpensesPage />);
-
-    // Ensure we are on Daily Expenses tab (default)
-    // Click "Add Personal" in the Daily Expenses tab
-    await user.click(screen.getByRole('button', { name: /Add Personal/i }));
-
-    // Wait for dialog to open
-    const dialog = await screen.findByRole('dialog');
-
-    const nameInputs = within(dialog).getAllByLabelText('Name');
-    fireEvent.change(nameInputs[0], {
-      target: { value: 'Coffee' },
-    });
-
-    const costInputs = within(dialog).getAllByLabelText(/Daily Cost/i);
-    fireEvent.change(costInputs[0], {
-      target: { value: '5' },
-    });
+    // 5. Step 4: Sharing (Shared)
+    const sharedBtn = await screen.findByRole('button', { name: /Shared/i });
+    await user.click(sharedBtn);
 
     // Submit
-    await user.click(
-      screen.getByRole('button', { name: 'Add Expense' }),
-    );
+    await user.click(screen.getByRole('button', { name: /Save Expense/i }));
 
     // Wait for dialog to close
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
+    // Verify UI
+    await screen.findByText('Hotel');
+    expect(screen.getByText(/USD 300.00 total/)).toBeInTheDocument();
+
+    // Verify State
+    expect(capturedState?.dailySharedExpenses[0]?.name).toBe('Hotel');
+    expect(capturedState?.dailySharedExpenses[0]?.totalCost).toBe(300);
+    expect(capturedState?.dailySharedExpenses[0]?.splitMode).toBe('dailyOccupancy'); // Default
+  });
+
+  it('adds a daily personal expense (Time-Bound, Individual)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ExpensesPage />);
+
+    // 1. Open
+    await user.click(screen.getByRole('button', { name: /Add Expense/i }));
+
+    // 2. Name
+    const nameInput = await screen.findByPlaceholderText(/e\.g\., Airbnb/i);
+    await user.type(nameInput, 'Coffee');
+    await user.click(screen.getByRole('button', { name: /Next/i }));
+
+    // 3. Type
+    const timeBoundBtn = await screen.findByRole('button', { name: /Time-Bound/i });
+    await user.click(timeBoundBtn);
+    await user.click(screen.getByRole('button', { name: /Next/i }));
+
+    // 4. Cost
+    const costInput = await screen.findByPlaceholderText('0.00');
+    await user.type(costInput, '15');
+    await user.click(screen.getByRole('button', { name: /Next/i }));
+
+    // 5. Allocation (Individual)
+    const individualBtn = await screen.findByRole('button', { name: /Individual/i });
+    await user.click(individualBtn);
+
+    // Submit
+    await user.click(screen.getByRole('button', { name: /Save Expense/i }));
+
+    // Verify
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     await screen.findByText('Coffee');
+    // 15 total / 3 days = 5 per day
     expect(screen.getByText(/USD 5.00 \/ day/)).toBeInTheDocument();
 
     expect(capturedState?.dailyPersonalExpenses[0]?.name).toBe('Coffee');
-    expect(capturedState?.dailyPersonalExpenses[0]?.dailyCost).toBe(5);
-    expect(capturedState?.dailyPersonalExpenses[0]?.startDate).toBe('2024-01-01');
-    expect(capturedState?.dailyPersonalExpenses[0]?.endDate).toBe('2024-01-04');
+    expect(capturedState?.dailyPersonalExpenses[0]?.dailyCost).toBe(5); // 15 / 3
   });
 });
