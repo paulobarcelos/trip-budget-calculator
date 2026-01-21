@@ -1,13 +1,15 @@
-# Trip Budget Planner
+# Trip Budget Calculator
 
-Model a trip budget before you book. Add dates, travelers, and rough costs, then tweak assumptions to see how totals shift per person. Share a snapshot link with your group so everyone can review the plan, and (optionally) use the same data to track actual usage during the trip.
+Model a trip budget before you book. Add expenses and travelers, then track usage to see per-person totals. Share a snapshot link with your group and keep everything saved locally.
 
 ## Features
-- Scenario planning: adjust rates, participants, and dates to instantly recalc per-traveler costs
-- Supports mixed traveler dates and four expense types (time-bound/one-off, shared/individual)
-- Exclusive end-date logic (leaving on the 5th means you don’t pay for the 5th)
+- Scenario planning: adjust costs, participants, and dates to recalc per-traveler totals
+- Four expense types (time-bound/one-off, shared/individual) with per-expense currency
+- Time-bound shared split modes: daily occupancy or person-day rate
+- Exclusive end-date logic (leaving on the 5th means you do not pay for the 5th)
+- Usage calendar with per-day assignments and copy-previous-day
 - Display currency selection with `~` prefix for converted amounts
-- LocalStorage persistence plus JSON export/import and shareable snapshot links (Header ➜ Data Transfer)
+- LocalStorage persistence plus JSON export/import and shareable snapshot links (Header -> Data Transfer)
 
 ## Getting Started
 ```bash
@@ -15,7 +17,7 @@ npm install
 npm run dev
 ```
 Open http://localhost:3000 and step through:
-1) Setup dates, 2) Add travelers, 3) Add expenses, 4) (Optional) Mark usage, 5) View budget.
+1) Add expenses, 2) Add travelers, 3) (Optional) Mark usage, 4) View totals on Travelers.
 
 ## Testing & Quality
 - `npm run lint` — ESLint + `tsc --noEmit`
@@ -35,15 +37,13 @@ Open http://localhost:3000 and step through:
 - `docs/plans/` – implementation plans and design notes
 
 ## Tech Stack
-Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Shadcn UI.
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, shadcn UI.
 
 ## State, Sharing & Currency
 - Trip data lives in `tripState` in localStorage (versioned and migrated on load).
 - Export/Import: use the Header “Data Transfer” controls to download or re-import a `trip-budget-YYYYMMDD.json` snapshot (validation is structural).
-- Shareable links: copy a URL with `?data=t=...` payload (hash also supported on ingest). Opening the link hydrates trip state once and strips the param.
-- Display currency preference is stored in trip data and can still be overridden via `?currency=`.
+- Shareable links: copy a URL with `?data=t=...` payload (hash also supported on ingest). Opening the link hydrates trip state once and strips the param/hash.
+- Display currency preference is stored in trip data (per viewer).
 
 ## Development Notes
-- Lint: `npm run lint`
-- Tests: currently manual + lint; date-math/unit coverage planned
 - Exclusive date math: end dates are treated as exclusive across days, usage, and pricing
