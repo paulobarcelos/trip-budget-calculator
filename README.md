@@ -4,7 +4,7 @@ Model a trip budget before you book. Add dates, travelers, and rough costs, then
 
 ## Features
 - Scenario planning: adjust rates, participants, and dates to instantly recalc per-traveler costs
-- Supports mixed traveler dates and four expense types (daily/one-time, shared/personal)
+- Supports mixed traveler dates and four expense types (time-bound/one-off, shared/individual)
 - Exclusive end-date logic (leaving on the 5th means you don’t pay for the 5th)
 - Display currency selection with `~` prefix for converted amounts
 - LocalStorage persistence plus JSON export/import and shareable snapshot links (Header ➜ Data Transfer)
