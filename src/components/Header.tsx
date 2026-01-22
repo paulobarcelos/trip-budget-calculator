@@ -6,14 +6,16 @@ import { usePathname } from 'next/navigation';
 import { MobileNav } from './MobileNav';
 import { DataTransferControls } from './DataTransferControls';
 import { SyncStatus } from './SyncStatus';
-import { Menu } from 'lucide-react';
+import { Menu, Sparkles } from 'lucide-react';
 import { CurrencySelect } from './CurrencySelect';
 import { Button } from './ui/button';
 import { currencies } from '@/data/currencies';
 import { useDisplayCurrency } from '@/providers/DisplayCurrencyProvider';
+import { AiAssistantDialog } from './AiAssistantDialog';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
   const pathname = usePathname();
   const { displayCurrency, setDisplayCurrency } = useDisplayCurrency();
 
@@ -65,6 +67,15 @@ export function Header() {
               <SyncStatus />
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsAiOpen(true)}
+                className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+              >
+                <Sparkles className="h-5 w-5" />
+                <span className="sr-only">Open AI Assistant</span>
+              </Button>
               <DataTransferControls />
 
               {/* Mobile menu button */}
@@ -89,6 +100,7 @@ export function Header() {
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
+      <AiAssistantDialog open={isAiOpen} onOpenChange={setIsAiOpen} />
     </header>
   );
 }

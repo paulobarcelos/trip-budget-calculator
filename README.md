@@ -10,6 +10,7 @@ Model a trip budget before you book. Add expenses and travelers, then track usag
 - Usage calendar with per-day assignments and copy-previous-day
 - Display currency selection with `~` prefix for converted amounts
 - LocalStorage persistence plus JSON export/import and shareable snapshot links (Header -> Data Transfer)
+- Optional AI assistant (Gemini) to suggest structured actions from plain language
 
 ## Getting Started
 ```bash
@@ -47,3 +48,7 @@ Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, shadcn UI.
 
 ## Development Notes
 - Exclusive date math: end dates are treated as exclusive across days, usage, and pricing
+
+## AI Assistant
+- Set `GEMINI_API_KEY` to enable the `/api/ai/interpret` route.
+- The assistant suggests actions; nothing is applied until you confirm.
