@@ -56,7 +56,7 @@ export default function TravelersPage() {
   const [travelerToEdit, setTravelerToEdit] = useState<{ id: string; name: string } | null>(null);
   const [nameInput, setNameInput] = useState("");
   const nextTravelerName = useMemo(
-    () => `Traveller ${tripState.travelers.length + 1}`,
+    () => `Traveler ${tripState.travelers.length + 1}`,
     [tripState.travelers.length],
   );
 
