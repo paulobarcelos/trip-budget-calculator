@@ -65,6 +65,30 @@ const responseSchema = {
   required: ["actions"],
 };
 
+const extractJsonText = (raw: string) => {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+
+  if (trimmed.startsWith("```")) {
+    const withoutFence = trimmed.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "");
+    if (withoutFence.trim()) return withoutFence.trim();
+  }
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  const firstBracket = trimmed.indexOf("[");
+  const lastBracket = trimmed.lastIndexOf("]");
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    return trimmed.slice(firstBracket, lastBracket + 1);
+  }
+
+  return trimmed;
+};
+
 const buildSystemPrompt = () => `
 You are the Trip Budget assistant. Convert the user request into structured JSON actions.
 
@@ -184,7 +208,8 @@ export async function POST(request: Request) {
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    const extracted = extractJsonText(text);
+    parsed = JSON.parse(extracted);
   } catch (error) {
     console.error("Failed to parse Gemini JSON output:", error);
     return NextResponse.json({ error: "Gemini returned invalid JSON." }, { status: 502 });
