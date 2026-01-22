@@ -54,6 +54,11 @@ export default function TravelersPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [travelerToEdit, setTravelerToEdit] = useState<{ id: string; name: string } | null>(null);
+  const [nameInput, setNameInput] = useState("");
+  const nextTravelerName = useMemo(
+    () => `Traveller ${tripState.travelers.length + 1}`,
+    [tripState.travelers.length],
+  );
 
   const { budgetData, isLoading } = useTripBudget(tripState);
 
@@ -257,13 +262,13 @@ export default function TravelersPage() {
 
   const handleEditTraveler = (traveler: { id: string; name: string }) => {
     setTravelerToEdit(traveler);
+    setNameInput(traveler.name);
     setIsAddDialogOpen(true);
   };
 
   const handleAddOrUpdateTraveler = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name") as string;
+    const name = nameInput;
 
     if (!name.trim()) {
       setError("Traveler name is required.");
@@ -378,6 +383,10 @@ export default function TravelersPage() {
               setIsAddDialogOpen(open);
               if (!open) {
                 setTravelerToEdit(null);
+                setNameInput("");
+                setError(null);
+              } else if (!travelerToEdit) {
+                setNameInput(nextTravelerName);
               }
             }}
           >
@@ -402,7 +411,8 @@ export default function TravelersPage() {
                     name="name"
                     required
                     placeholder="e.g. Alice"
-                    defaultValue={travelerToEdit?.name}
+                    value={nameInput}
+                    onChange={(event) => setNameInput(event.target.value)}
                   />
                 </div>
                 {error && (
